@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Contract Data Extraction for Legal Teams | Sensible</title>
+  <meta name="description" content="Extract parties, dates, financial terms, and key clauses from MSAs, NDAs, leases, and vendor agreements into schema-validated JSON with page and bounding-box evidence. Amendment linking, human review, SOC 2 Type II."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <script>document.documentElement.classList.add('ap-js')</script>
+  <style>
+    /* Sensible's own brand webfont, pulled from their live site */
+    @font-face {
+      font-family: 'Matter SQ';
+      src: url('assets/fonts/MatterSQ-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Matter SQ';
+      src: url('assets/fonts/MatterSQ-Medium.woff2') format('woff2');
+      font-weight: 500;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Matter SQ';
+      src: url('assets/fonts/MatterSQ-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* Sensible Editorial Tokens */
+    :root {
+      --bg-stone: #FBFBF9;
+      --bg-white: #FFFFFF;
+      --bg-stone-subtle: #F4F3EF;
+      --bg-dark-accent: #17121C;
+      
+      --brand-magenta: #840055;
+      --brand-magenta-dark: #4B0532;
+      --brand-magenta-light: #9A1066;
+      --brand-magenta-accent: #E279BF;
+      --brand-magenta-glow: rgba(132, 0, 85, 0.15);
+      --brand-gradient: linear-gradient(135deg, #840055 0%, #9A1066 100%);
+      
+      --text-dark: #1A1520;
+      --text-body: #4A4540;
+      --text-muted: #8B857B;
+      --text-light: #FFFFFF;
+
+      --border-stone: #E8E3DB;
+      --border-light: #F0ECE5;
+
+      --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.03);
+      --shadow-medium: 0 12px 36px rgba(0, 0, 0, 0.06);
+      --shadow-float: 0 24px 60px rgba(20, 17, 24, 0.08);
+
+      --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-mono-alt: 'Space Mono', monospace;
+      --font-serif: 'IBM Plex Serif', Georgia, serif;
+      --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      --bg-darkest: #1A1520;
+
+      --check-green: #00875A;
+      --cross-red: #E03E2E;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+
+    html {
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    body {
+      background-color: var(--bg-stone);
+      color: var(--text-dark);
+      font-family: var(--font-body);
+      line-height: 1.55;
+      overflow-x: hidden;
+      width: 100%;
+      position: relative;
+    }
+
+    /* This page is a "vs X" comparison template, not the marketing homepage the real
+       sensible.so comparison pages (e.g. /sensible-vs-docsumo) run entirely on IBM Plex
+       Serif (headings, regular weight, tight negative letter-spacing) + IBM Plex Sans
+       (body/UI) + IBM Plex Mono (eyebrow labels). Matter SQ doesn't appear in that
+       template at all it's specific to the general marketing site. */
+
+    a { text-decoration: none; color: inherit; }
+
+    .container {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: rgba(254, 253, 251, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background-image: linear-gradient(90deg, transparent, var(--border-stone) 15%, var(--border-stone) 85%, transparent); background-size: 100% 1px; background-position: bottom; background-repeat: no-repeat; border-bottom: none;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .navbar-inner {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--text-dark);
+      flex-shrink: 0;
+    }
+    .nav-links {
+      display: flex;
+      gap: 4px;
+      list-style: none;
+      font-size: 14px;
+      font-weight: 500;
+      color: #4A4540;
+      align-items: center;
+    }
+    .nav-links a {
+      padding: 8px 12px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--brand-magenta); }
+
+    .nav-signin {
+      color: #4A4540;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-signin:hover { color: var(--text-dark); }
+
+    /* Mobile nav toggle + slide-down panel (hidden until the 860px breakpoint) */
+    .mobile-toggle {
+      display: none;
+      color: var(--text-dark);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px 8px;
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+    .mobile-panel {
+      display: none;
+      flex-direction: column;
+      max-height: calc(100vh - 60px);
+      overflow-y: auto;
+      padding: 8px 20px 20px;
+      background: var(--bg-white);
+      background-image: linear-gradient(90deg, transparent, var(--border-stone) 15%, var(--border-stone) 85%, transparent); background-size: 100% 1px; background-position: bottom; background-repeat: no-repeat; border-bottom: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+    }
+    .mobile-panel.is-open { display: flex; }
+    .mobile-link {
+      display: block;
+      padding: 14px 0;
+      background-image: linear-gradient(90deg, transparent, var(--border-light) 15%, var(--border-light) 85%, transparent); background-size: 100% 1px; background-position: bottom; background-repeat: no-repeat; border-bottom: none;
+      font-size: 1.0625rem;
+      font-weight: 500;
+      color: var(--text-dark);
+    }
+    .mobile-link:hover { color: var(--brand-magenta); }
+    .mobile-signin {
+      display: block;
+      margin-top: 8px;
+      padding: 14px 0;
+      font-size: 0.9375rem;
+      color: var(--text-body);
+    }
+    .mobile-signin:hover { color: var(--text-dark); }
+    .mobile-cta {
+      display: block;
+      margin-top: 12px;
+      padding: 14px 20px;
+      text-align: center;
+      font-weight: 500;
+      color: #fff;
+      background: var(--brand-gradient);
+      border-radius: 6px;
+      box-shadow: 0 1px 3px var(--brand-magenta-glow);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 26px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--brand-gradient);
+      color: var(--text-light);
+      box-shadow: 0 2px 8px var(--brand-magenta-glow);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--brand-magenta-dark), var(--brand-magenta));
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(132, 0, 85, 0.25);
+    }
+    .btn-secondary {
+      background: var(--bg-white);
+      color: var(--text-dark);
+      border-color: var(--border-stone);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-stone-subtle);
+      border-color: var(--text-muted);
+    }
+    /* 7. CTA BANNER & FOOTER */
+    .cta-banner {
+      background-color: var(--bg-darkest);
+      /* Light, short blend from the takeaways section's stone bg down into the dark banner (solid-to-solid, not faded-to-transparent, so it doesn't muddy against the dark bg), layered above the brand glows */
+      background-image: linear-gradient(180deg, var(--bg-stone-subtle), var(--bg-darkest)), radial-gradient(circle at 30% 20%, rgba(132,0,85,0.32) 0%, transparent 55%), radial-gradient(circle at 80% 100%, rgba(248,156,42,0.1) 0%, transparent 50%);
+      background-size: 100% 56px, 100% 100%, 100% 100%;
+      background-position: top, center, center;
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      padding: clamp(72px, 10vw, 128px) 40px;
+      text-align: center;
+      color: #FEFDFB;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-inner { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; }
+    .cta-h2 {
+      font-family: var(--font-serif);
+      font-weight: 400;
+      font-size: clamp(1.875rem, 4vw, 2.875rem);
+      line-height: 1.12;
+      letter-spacing: -0.015em;
+      margin-bottom: 16px;
+      color: #FEFDFB;
+    }
+    .cta-p { font-size: 17px; color: #E5E0D8; max-width: 440px; margin: 0 auto 32px; }
+    .cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .cta-btn-primary {
+      background: #F89C2A;
+      color: #1A1520;
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-size: 0.9063rem;
+      font-weight: 600;
+      display: inline-block;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .cta-btn-primary:hover { background: #e08d1f; }
+    .cta-btn-secondary {
+      color: #E5E0D8;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-size: 0.9063rem;
+      font-weight: 500;
+      display: inline-block;
+      text-decoration: none;
+      transition: border-color 0.2s;
+    }
+    .cta-btn-secondary:hover { border-color: rgba(255,255,255,0.5); }
+    .cta-note {
+      color: #8B857B;
+      letter-spacing: 0.16em;
+      margin-top: 22px;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+    }
+
+    .footer {
+      background-color: var(--bg-darkest);
+      color: #E5E0D8;
+      padding: 96px 0 48px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+    }
+    .footer-logo-img { filter: brightness(0) invert(1); max-height: 33px; }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
+      gap: 40px;
+      padding-bottom: 64px;
+    }
+    .footer-col-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #FEFDFB;
+      margin-bottom: 20px;
+    }
+    .footer-col a {
+      display: block;
+      font-family: var(--font-sans);
+      color: #C9C2B6;
+      font-size: 14px;
+      margin-bottom: 12px;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-col a:hover { color: #FEFDFB; }
+    .footer-brand-blurb { color: #A69EAD; font-size: 14px; margin: 16px 0 20px; }
+    .footer-social { display: flex; gap: 14px; }
+    .footer-social a { color: #A69EAD; transition: color 0.2s; }
+    .footer-social a:hover { color: #FEFDFB; }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 13px;
+      color: #8B857B;
+    }
+    .footer-copyright {
+      font-family: var(--font-mono-alt);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .footer-bottom-links { display: flex; gap: 24px; }
+    .footer-bottom-links a { color: #8B857B; text-decoration: none; transition: color 0.2s; }
+    .footer-bottom-links a:hover { color: #FEFDFB; }
+    /* Mobile fallback list for the architecture diagram hidden until the diagram
+       breakpoint below, where it replaces the fixed-width scaled canvas entirely
+       (the cqw-scale trick doesn't degrade gracefully on real small-screen browsers). */
+    .arch-mobile-list { display: none; flex-direction: column; gap: 12px; }
+    .arch-mobile-item, .arch-mobile-branch > .arch-mobile-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+    }
+    .arch-mobile-item.accent { border-color: rgba(132,0,85,0.3); box-shadow: 0 4px 12px rgba(132,0,85,0.06); }
+    .arch-mobile-item.conditional { border-style: dashed; border-color: #d9dbe0; background: #fafafa; }
+    .arch-mobile-branch {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 0 10px 20px;
+      margin-left: 10px;
+      border-left: 2px dashed #e5e7eb;
+    }
+    .arch-mobile-branch-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+    .arch-mobile-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: var(--bg-stone-subtle);
+      border: 1px solid var(--border-stone);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .pn-icon.accent { background: var(--brand-gradient); color: #fff; }
+
+
+    @media (max-width: 991px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px 24px; } }
+    @media (max-width: 860px) { .navbar-inner { height: 60px; } .nav-links { display: none; } .nav-cta-group { display: none !important; } .mobile-toggle { display: block; } }
+    @media (max-width: 767px) { .container { padding: 0 20px; } .cta-h2 { font-size: 28px; } .cta-banner { padding: 56px 24px; }
+      .footer { padding: 64px 0 40px; } .footer-grid { grid-template-columns: 1fr; gap: 40px; padding-bottom: 40px; } .footer-bottom { flex-direction: column; align-items: flex-start; } }
+    @media (max-width: 480px) { .nav-logo img { height: 22px !important; } }
+    .sensible-font { font-family: 'Matter SQ', var(--font-sans); font-weight: 500; }
+
+/* ==========================================================================
+   Sensible /solutions/accounts-payable
+   All selectors are scoped under .ap and prefixed ap- so they cannot collide with
+   the site's existing Webflow classes (dt-*, sp-*, d12-*, c2-*, .container, .btn ...).
+   Tokens come from the real Brand variable collection (read via the Webflow MCP).
+   ========================================================================== */
+.ap {
+  --ap-ink: #1A1520;        /* --_brand---text-primary */
+  --ap-body: #4A4540;       /* --_brand---text-secondary */
+  --ap-muted: #8B857B;      /* --_brand---text-tertiary */
+  --ap-line: #E6E6E9;
+  --ap-soft: #F6F6F7;
+  --ap-tint: #F1DDE8;       /* light magenta tint for the hero panel */
+  --ap-mag: #840055;        /* --_brand---accent */
+  --ap-mag-dk: #4B0532;
+  --ap-ok: #2E7B40;         /* --ok */
+  --ap-warn: #D88B1F;       /* --warn */
+  --ap-serif: 'IBM Plex Serif', Georgia, serif;
+  --ap-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ap-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--ap-sans);
+  color: var(--ap-ink);
+  background: #fff;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+.ap *, .ap *::before, .ap *::after { box-sizing: border-box; }
+.ap :where(h1, h2, h3, p, ul, dl, dd, blockquote) { margin: 0; padding: 0; }
+.ap :where(ul) { list-style: none; }
+.ap a { color: inherit; text-decoration: none; }
+.ap button { font: inherit; }
+.ap-wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+.ap-sec { padding: 112px 0; border-top: 1px solid var(--ap-line); position: relative; }
+
+/* ---------- type ---------- */
+.ap-kicker { display: inline-flex; align-items: center; gap: 10px; font-family: var(--ap-mono); font-size: .75rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ap-muted); }
+.ap-kicker::before { content: ''; width: 6px; height: 6px; background: currentColor; flex: none; }
+.ap-h1 { font-family: var(--ap-serif); font-weight: 400; font-size: clamp(2rem, 3.6vw, 3rem); line-height: 1.06; letter-spacing: -.02em; margin: 26px 0 26px; }
+.ap-h1 em, .ap-h2 em { font-style: normal; color: var(--ap-mag); }
+.ap-h2 { font-family: var(--ap-serif); font-weight: 400; font-size: clamp(1.9rem, 3.2vw, 2.5rem); line-height: 1.12; letter-spacing: -.015em; margin: 18px 0 0; }
+.ap-lede { font-size: 1.0625rem; line-height: 1.6; color: var(--ap-body); max-width: 50ch; }
+.ap-center { text-align: center; }
+.ap-center .ap-lede { margin-left: auto; margin-right: auto; }
+.ap-head { margin-bottom: 64px; }
+.ap-head .ap-lede { margin-top: 20px; }
+.ap-tag { display: inline-block; background: #F1DCE8; color: var(--ap-ink); font-family: var(--ap-mono); font-size: .8125rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; padding: 11px 15px; }
+.ap-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.ap-btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 6px; font-size: .9375rem; font-weight: 500; border: 1px solid transparent; cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
+.ap-btn.p { background: var(--ap-mag); color: #fff; } .ap-btn.p:hover { background: var(--ap-mag-dk); }
+.ap-btn.s { background: #fff; color: var(--ap-ink); border-color: var(--ap-line); } .ap-btn.s:hover { border-color: var(--ap-muted); }
+.ap-note { font-family: var(--ap-mono); font-size: .75rem; color: var(--ap-muted); letter-spacing: .04em; margin-top: 16px; }
+
+/* ---------- 1. hero ---------- */
+.ap-hero { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.3fr); min-height: 640px; }
+.ap-hero-copy { padding: 64px 40px 56px max(32px, calc((100vw - 1200px) / 2 + 32px)); display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+.ap-hero-copy .ap-lede { margin-bottom: 30px; max-width: 46ch; }
+.ap-h1 .ap-w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
+.ap-h1 .ap-w > span { display: inline-block; will-change: transform; }
+.ap-hero-panel { position: relative; background: var(--ap-tint); overflow: hidden; padding: 44px max(28px, calc((100vw - 1200px) / 2 + 32px)) 44px 48px; display: flex; flex-direction: column; justify-content: center; }
+.ap-hero-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ap-demo-wrap { position: relative; z-index: 2; width: 100%; max-width: 800px; margin-left: auto; }
+.ap-demo-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.ap-demo-tab { cursor: pointer; padding: 8px 15px; border-radius: 999px; border: 1px solid transparent; background: rgba(255,255,255,.7); color: var(--ap-body); font-size: .8125rem; font-weight: 500; transition: all .2s; }
+.ap-demo-tab:hover { background: #fff; }
+.ap-demo-tab[aria-selected="true"] { background: var(--ap-mag); color: #fff; }
+.ap-demo { display: grid; grid-template-columns: .9fr 1.1fr; grid-template-rows: minmax(0, 1fr); height: 486px; background: #fff; border: 1px solid var(--ap-line); border-radius: 12px; overflow: hidden; box-shadow: 0 30px 70px rgba(75,5,50,.16), 0 4px 14px rgba(26,21,32,.05); }
+.ap-pane { display: none; } .ap-pane.on { display: contents; }
+.ap-doccol { background: var(--ap-soft); padding: 12px; min-height: 0; overflow: hidden; border-right: 1px solid var(--ap-line); }
+.ap-cap { font-family: var(--ap-mono); font-size: .625rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ap-muted); margin-bottom: 10px; }
+.ap-doc { background: #fff; border: 1px solid var(--ap-line); border-radius: 4px; padding: 13px; font-size: 10.5px; line-height: 1.4; color: #2b2630; box-shadow: 0 6px 20px rgba(26,21,32,.06); }
+.ap-doc-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.ap-doc-top b { display: block; font-family: var(--ap-serif); font-size: 13px; font-weight: 500; }
+.ap-doc-top .r { text-align: right; } .ap-doc-top .r b { font-family: var(--ap-mono); font-size: 12px; letter-spacing: .14em; } .ap-doc-top .r span { font-family: var(--ap-mono); font-size: 10px; color: var(--ap-muted); }
+.ap-meta { margin-bottom: 8px; display: grid; gap: 4px; }
+.ap-meta dt { font-family: var(--ap-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ap-muted); }
+.ap-meta dd { margin: 0 0 3px; }
+.ap-meta .g { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.ap-tbl { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.ap-tbl th { font-family: var(--ap-mono); font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ap-muted); text-align: right; padding: 4px 2px; border-bottom: 1px solid var(--ap-line); font-weight: 500; }
+.ap-tbl td { text-align: right; padding: 4px 2px; border-bottom: 1px solid #F0F0F2; vertical-align: top; white-space: nowrap; }
+.ap-tbl th:first-child, .ap-tbl td:first-child { text-align: left; white-space: normal; }
+.ap-tot { margin-left: auto; width: 78%; }
+.ap-tot div { display: flex; justify-content: space-between; padding: 2px 0; }
+.ap-tot .g { border-top: 1.5px solid var(--ap-ink); margin-top: 3px; padding-top: 5px; font-weight: 600; font-size: 12px; }
+[data-f] { border-radius: 3px; transition: background .15s, box-shadow .15s; }
+[data-f].hl { background: rgba(132,0,85,.12); box-shadow: 0 0 0 2px rgba(132,0,85,.12); }
+.ap-jcol { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: #fff; }
+.ap-api { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--ap-soft); border-bottom: 1px solid var(--ap-line); font-family: var(--ap-mono); font-size: 11.5px; }
+.ap-api .v { background: rgba(46,123,64,.12); color: var(--ap-ok); padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.ap-api .ok { margin-left: auto; color: var(--ap-ok); }
+.ap-json { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; font-family: var(--ap-mono); font-size: 10.5px; line-height: 1.5; background: var(--ap-soft); }
+.ap-jl { display: block; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 6px 0 26px; text-indent: -20px; border-radius: 3px; }
+.ap-jl.hl { background: rgba(132,0,85,.10); }
+.ap-jk { color: var(--ap-mag); } .ap-js { color: var(--ap-ok); } .ap-jn { color: #A8620F; } .ap-jc { color: var(--ap-muted); }
+.ap-jfoot { display: flex; justify-content: space-between; gap: 12px; padding: 9px 14px; border-top: 1px solid var(--ap-line); font-family: var(--ap-mono); font-size: 10px; color: var(--ap-muted); }
+.ap-demo-note { margin-top: 12px; font-size: .78rem; color: var(--ap-body); opacity: .8; }
+
+/* ---------- 2. ribbon + logos ---------- */
+.ap-ribbon { background: var(--ap-soft); border-top: 1px solid var(--ap-line); border-bottom: 1px solid var(--ap-line); }
+.ap-ribbon-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.ap-ribbon-cell { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; padding: 19px 22px 17px; border-left: 1px solid var(--ap-line); }
+.ap-ribbon-cell:first-child { border-left: 0; }
+.ap-ribbon-v { font-family: var(--ap-serif); font-weight: 400; font-size: 1.375rem; line-height: 1.05; }
+.ap-ribbon-l { font-family: var(--ap-mono); font-size: .625rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ap-muted); }
+.ap-logos { padding: 34px 0 38px; overflow: hidden; }
+.ap-logos-cap { text-align: center; font-family: var(--ap-mono); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ap-muted); margin-bottom: 20px; }
+.ap-logos-track { display: inline-flex; align-items: center; gap: 88px; white-space: nowrap; animation: ap-marq 28s linear infinite; }
+.ap-logos-track img { height: 34px; width: auto; max-width: 150px; object-fit: contain; display: block; flex: none; }
+@keyframes ap-marq { to { transform: translateX(-50%); } }
+
+/* ---------- 3. chaos panel ---------- */
+.ap-chaos { position: relative; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); background: var(--ap-soft); border-radius: 18px; overflow: hidden; min-height: 620px; }
+.ap-chaos-copy { padding: 72px 40px 64px 64px; display: flex; flex-direction: column; justify-content: center; }
+.ap-chaos-copy .ap-h2 { font-size: clamp(1.8rem, 2.8vw, 2.25rem); margin-bottom: 26px; }
+.ap-bullets { display: grid; gap: 16px; margin-bottom: 36px; }
+.ap-bullets li { position: relative; padding-left: 26px; font-size: 1.0625rem; line-height: 1.45; }
+.ap-bullets li::before { content: ''; position: absolute; left: 0; top: .6em; width: 7px; height: 7px; background: var(--ap-ink); }
+.ap-chaos-stage { position: relative; }
+.ap-chaos-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ap-chaos-label { position: absolute; inset: 0; font-family: var(--ap-serif); font-size: clamp(1.6rem, 2.6vw, 2.25rem); letter-spacing: -.015em; white-space: nowrap; text-align: center; pointer-events: none; }
+.ap-chaos-label span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--ap-soft); padding: 4px 14px; }
+.ap-chaos-label .b { opacity: 0; color: var(--ap-mag); top: auto; bottom: 3%; transform: translate(-50%, 0); font-size: .78em; background: transparent; }
+.ap-cs-hl { opacity: 0; }
+
+/* ---------- 4. hairline grids ---------- */
+.ap-grid { display: grid; border-top: 1px solid var(--ap-line); border-bottom: 1px solid var(--ap-line); }
+.ap-g4 { grid-template-columns: repeat(4, 1fr); } .ap-g5 { grid-template-columns: repeat(5, 1fr); } .ap-g3 { grid-template-columns: repeat(3, 1fr); }
+.ap-cell { padding: 40px 32px 44px; border-left: 1px solid var(--ap-line); position: relative; }
+.ap-cell:first-child { border-left: 0; }
+.ap-g3 .ap-cell:nth-child(3n+1) { border-left: 0; }
+.ap-g3 .ap-cell:nth-child(n+4) { border-top: 1px solid var(--ap-line); }
+.ap-num { display: flex; align-items: center; gap: 10px; font-family: var(--ap-mono); font-size: .75rem; letter-spacing: .1em; color: var(--ap-muted); }
+.ap-num::before { content: ''; width: 5px; height: 5px; background: currentColor; }
+.ap-cell h3 { font-family: var(--ap-serif); font-weight: 500; font-size: 1.25rem; line-height: 1.15; letter-spacing: -.01em; margin: 26px 0 12px; }
+.ap-cell p { font-size: .9688rem; line-height: 1.6; color: var(--ap-body); }
+.ap-cell .ap-tagline { font-family: var(--ap-mono); font-size: .625rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ap-mag); margin-left: auto; }
+.ap-mini { display: block; width: 100%; max-width: 220px; height: auto; margin-top: 34px; }
+.ap-mini .m1, .ap-mini .m2, .ap-mini .m3 { transition: transform .45s cubic-bezier(.2,.7,.2,1); }
+.ap-cell:hover .ap-mini .m1 { transform: translate(5px, -4px); } .ap-cell:hover .ap-mini .m2 { transform: translate(-3px, 5px); } .ap-cell:hover .ap-mini .m3 { transform: translate(4px, 6px); }
+.ap-icon { width: 46px; height: 46px; display: block; }
+.ap-cell .ap-icon { transition: transform .4s cubic-bezier(.2,.7,.2,1); }
+.ap-cell:hover .ap-icon { transform: translateY(-4px) rotate(-4deg); }
+.ap-cell .ap-icon + h3 { margin-top: 30px; }
+.ap-plain { font-size: .9688rem; line-height: 1.7; color: var(--ap-body); }
+.ap-plain i { font-style: normal; color: var(--ap-muted); margin: 0 5px; }
+
+/* ---------- 5. fields ---------- */
+.ap-fields { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 64px; align-items: start; }
+.ap-fields-nav { position: sticky; top: 96px; }
+.ap-fields-nav .ap-h2 { margin-bottom: 20px; }
+.ap-fields-nav .ap-lede { font-size: 1rem; margin-bottom: 30px; }
+.ap-ftabs { border-top: 1px solid var(--ap-line); }
+.ap-ftab { display: flex; align-items: baseline; gap: 14px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--ap-line); padding: 18px 0; cursor: pointer; color: var(--ap-muted); transition: color .2s, padding .3s; }
+.ap-ftab .n { font-family: var(--ap-mono); font-size: .6875rem; letter-spacing: .14em; }
+.ap-ftab .t { font-family: var(--ap-serif); font-size: 1.25rem; letter-spacing: -.01em; }
+.ap-ftab .c { margin-left: auto; font-family: var(--ap-mono); font-size: .6875rem; }
+.ap-ftab:hover { color: var(--ap-ink); }
+.ap-ftab[aria-selected="true"] { color: var(--ap-ink); padding-left: 12px; box-shadow: inset 3px 0 0 var(--ap-mag); }
+.ap-fpane { display: none; } .ap-fpane.on { display: block; }
+.ap-frow { display: grid; grid-template-columns: .85fr 1.6fr 1.9fr 88px; gap: 18px; padding: 13px 0; align-items: center; border-bottom: 1px solid var(--ap-line); font-size: .875rem; color: var(--ap-body); line-height: 1.45; }
+.ap-frow.h { font-family: var(--ap-mono); font-size: .625rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ap-muted); padding-top: 4px; }
+.ap-fpane { min-height: 560px; }
+.ap-fname { font-family: var(--ap-serif); font-size: 1rem; font-weight: 500; color: var(--ap-ink); }
+.ap-frow code { font-family: var(--ap-mono); font-size: .75rem; color: var(--ap-mag); background: rgba(132,0,85,.06); padding: 2px 6px; border-radius: 4px; }
+.ap-type { font-family: var(--ap-mono); font-size: .6875rem; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--ap-line); background: var(--ap-soft); }
+.ap-type.t-date { color: var(--ap-mag); border-color: rgba(132,0,85,.2); background: rgba(132,0,85,.05); }
+.ap-type.t-currency, .ap-type.t-number { color: #A8620F; border-color: rgba(216,139,31,.3); background: rgba(216,139,31,.08); }
+.ap-chk { font-family: var(--ap-mono); font-size: .6875rem; font-weight: 600; color: var(--ap-ok); background: rgba(46,123,64,.10); padding: 3px 9px; border-radius: 999px; }
+.ap-more { margin-top: 28px; padding-top: 22px; border-top: 2px solid var(--ap-ink); display: flex; gap: 22px; align-items: baseline; flex-wrap: wrap; font-size: .9375rem; color: var(--ap-body); }
+.ap-more b { font-family: var(--ap-serif); font-weight: 500; font-size: 1.15rem; color: var(--ap-ink); }
+
+/* ---------- 6. how it works (tinted band) ---------- */
+.ap-band { background: var(--ap-soft); }
+.ap-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; position: relative; }
+.ap-card { background: #fff; border: 1px solid var(--ap-line); border-radius: 12px; padding: 20px 20px 24px; display: flex; flex-direction: column; }
+.ap-card .art { background: var(--ap-soft); border-radius: 8px; padding: 6px 2px; margin-bottom: 22px; }
+.ap-card .art svg { display: block; width: 100%; height: auto; }
+.ap-card h3 { font-family: var(--ap-serif); font-weight: 500; font-size: 1.25rem; margin: 10px 0 8px; letter-spacing: -.01em; }
+.ap-card p { font-size: .9063rem; line-height: 1.55; color: var(--ap-body); flex: 1; }
+.ap-io { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--ap-line); font-family: var(--ap-mono); font-size: .6875rem; line-height: 1.7; color: var(--ap-muted); }
+.ap-io b { color: var(--ap-mag); font-weight: 500; display: inline-block; width: 30px; }
+.ap-draw { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.ap-scope { display: flex; align-items: center; gap: 16px; margin-top: 34px; }
+.ap-scope i { flex: 1; height: 1px; background: var(--ap-ink); transform-origin: left; }
+.ap-scope span { font-family: var(--ap-mono); font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; }
+.ap-then { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 20px; padding: 26px 0; }
+.ap-then .k { font-family: var(--ap-mono); font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ap-muted); padding-top: 3px; }
+.ap-then p { font-size: 1.0625rem; line-height: 1.6; max-width: 76ch; color: var(--ap-body); }
+.ap-trace { display: flex; flex-wrap: wrap; gap: 6px 26px; padding-top: 22px; border-top: 1px solid var(--ap-line); font-family: var(--ap-mono); font-size: .75rem; }
+.ap-trace .tl { color: var(--ap-muted); text-transform: uppercase; letter-spacing: .12em; font-size: .6875rem; }
+.ap-trace .k { color: var(--ap-mag); } .ap-trace .v { color: #A8620F; }
+
+/* ---------- 7. validation ---------- */
+.ap-val { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 80px; align-items: start; }
+.ap-val .ap-lede { margin-top: 24px; }
+.ap-checks { border-top: 2px solid var(--ap-ink); }
+.ap-checks-h { display: flex; justify-content: space-between; padding: 13px 0; font-family: var(--ap-mono); font-size: .6875rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ap-muted); border-bottom: 1px solid var(--ap-line); }
+.ap-check { display: grid; grid-template-columns: 26px 1fr auto; gap: 14px; align-items: start; padding: 18px 0; border-bottom: 1px solid var(--ap-line); }
+.ap-check .ic { width: 22px; height: 22px; border-radius: 50%; background: var(--ap-ok); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; margin-top: 1px; }
+.ap-check.flag { background: #FFF7EA; margin: 0 -14px; padding: 18px 14px; } .ap-check.flag .ic { background: var(--ap-warn); }
+.ap-check b { display: block; font-size: .9375rem; font-weight: 500; margin-bottom: 2px; }
+.ap-check .d { font-size: .84rem; color: var(--ap-body); line-height: 1.5; }
+.ap-check .res { font-family: var(--ap-mono); font-size: .75rem; color: var(--ap-muted); white-space: nowrap; }
+.ap-check.flag .res { color: #A8620F; }
+.ap-quote { margin-top: 96px; padding-top: 72px; border-top: 1px solid var(--ap-line); display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 32px; }
+.ap-quote blockquote { margin: 0; position: relative; padding-left: 92px; }
+.ap-quote blockquote::before { content: '\201C'; position: absolute; left: 0; top: -18px; font-family: var(--ap-serif); font-size: 8rem; line-height: 1; color: var(--ap-mag); }
+.ap-quote p { font-family: var(--ap-serif); font-size: clamp(1.4rem, 2.3vw, 1.9rem); line-height: 1.35; letter-spacing: -.01em; max-width: 34ch; }
+.ap-quote .ap-qw { opacity: 1; }
+.ap-quote cite { display: block; margin-top: 28px; font-style: normal; font-family: var(--ap-mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ap-muted); }
+
+/* ---------- 8. managed / 9. formats ---------- */
+.ap-mgd .ap-btns { justify-content: center; margin-top: 32px; }
+.ap-fmt-list { margin-top: 18px; }
+
+/* ---------- 10. faq ---------- */
+.ap-faq { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); gap: 80px; align-items: start; }
+.ap-faq-head { position: sticky; top: 96px; }
+.ap-faq-head .ap-lede { margin-top: 20px; font-size: 1.0625rem; }
+.ap-faq-list { border-top: 2px solid var(--ap-ink); }
+.ap-q { border-bottom: 1px solid var(--ap-line); }
+.ap-q summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: 20px; padding: 22px 0; font-family: var(--ap-serif); font-weight: 500; font-size: 1.125rem; line-height: 1.3; }
+.ap-q summary::-webkit-details-marker { display: none; }
+.ap-q summary i { font-style: normal; font-size: 1.5rem; line-height: 1; color: var(--ap-mag); transition: transform .25s; flex: none; }
+.ap-q[open] summary i { transform: rotate(45deg); }
+.ap-q-a { padding: 0 40px 26px 0; font-size: .96rem; line-height: 1.65; color: var(--ap-body); max-width: 64ch; }
+.ap-q-a p + p { margin-top: 10px; }
+.ap-q-a a { color: var(--ap-mag); }
+
+/* ---------- reveal (progressive enhancement: only hidden when JS + GSAP are present) ---------- */
+.ap-js [data-reveal] { opacity: 0; transform: translateY(26px); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .ap-cards { grid-template-columns: repeat(3, 1fr); }
+  .ap-g5 { grid-template-columns: repeat(3, 1fr); }
+  .ap-g5 .ap-cell { border-top: 1px solid var(--ap-line); } .ap-g5 .ap-cell:nth-child(3n+1) { border-left: 0; }
+  .ap-fields { grid-template-columns: 1fr; gap: 36px; } .ap-fields-nav { position: static; }
+  .ap-ftabs { display: flex; gap: 22px; border-bottom: 1px solid var(--ap-line); } .ap-ftab { width: auto; border-bottom: 0; } .ap-ftab[aria-selected="true"] { box-shadow: inset 0 -3px 0 var(--ap-mag); padding-left: 0; }
+}
+@media (max-width: 991px) {
+  .ap-hero { grid-template-columns: 1fr; } .ap-hero-copy { padding: 48px 32px 40px; }
+  .ap-hero-panel { padding: 32px; } .ap-demo { grid-template-columns: 1fr; grid-template-rows: none; height: auto; } .ap-jcol { max-height: 440px; }
+  .ap-chaos { grid-template-columns: 1fr; } .ap-chaos-copy { padding: 44px 32px 20px; } .ap-chaos-stage { min-height: 360px; }
+  .ap-g4 { grid-template-columns: 1fr 1fr; } .ap-g4 .ap-cell:nth-child(odd) { border-left: 0; } .ap-g4 .ap-cell:nth-child(n+3) { border-top: 1px solid var(--ap-line); }
+  .ap-g3 { grid-template-columns: 1fr 1fr; } .ap-g3 .ap-cell { border-left: 1px solid var(--ap-line); border-top: 1px solid var(--ap-line); } .ap-g3 .ap-cell:nth-child(odd) { border-left: 0; } .ap-g3 .ap-cell:nth-child(-n+2) { border-top: 0; }
+  .ap-val, .ap-faq { grid-template-columns: 1fr; gap: 40px; } .ap-faq-head { position: static; }
+  .ap-quote { grid-template-columns: 1fr; } .ap-quote blockquote { padding-left: 64px; } .ap-quote blockquote::before { font-size: 6rem; }
+  .ap-ribbon-grid { grid-template-columns: 1fr 1fr; } .ap-ribbon-cell:nth-child(3) { border-left: 0; } .ap-ribbon-cell:nth-child(n+3) { border-top: 1px solid var(--ap-line); }
+  .ap-frow { grid-template-columns: 1fr auto; gap: 6px 12px; } .ap-frow.h { display: none; } .ap-frow > :nth-child(n+2):not(.ap-tp) { grid-column: 1 / -1; } .ap-frow .ap-tp { grid-column: 2; grid-row: 1; text-align: right; }
+}
+@media (max-width: 767px) {
+  .ap-wrap { padding: 0 20px; } .ap-sec { padding: 72px 0; } .ap-head { margin-bottom: 40px; }
+  .ap-cards { grid-template-columns: 1fr; }
+  .ap-g4, .ap-g5, .ap-g3 { grid-template-columns: 1fr; } .ap-cell, .ap-g3 .ap-cell, .ap-g4 .ap-cell, .ap-g5 .ap-cell { border-left: 0 !important; border-top: 1px solid var(--ap-line) !important; padding: 32px 20px 36px; } .ap-cell:first-child { border-top: 0 !important; }
+  .ap-then { grid-template-columns: 1fr; gap: 6px; }
+  .ap-hero-copy, .ap-chaos-copy { padding-left: 20px; padding-right: 20px; } .ap-hero-panel { padding: 24px 12px; }
+  .ap-ribbon-cell { padding: 16px 10px 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .ap-logos-track { animation: none; } .ap-js [data-reveal] { opacity: 1; transform: none; } }
+
+/* hero starts hidden only while GSAP is going to animate it */
+.ap-js [data-hero], .ap-js .ap-h1 { opacity: 0; }
+.ap-num + .ap-icon { margin-top: 34px; }
+.ap-quote .ap-w { display: inline-block; }
+
+/* fields: merged key/type column + invoice schematic */
+.ap-fkey { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ap-fnote code { font-family: var(--ap-mono); font-size: .75rem; color: var(--ap-mag); background: rgba(132,0,85,.06); padding: 1px 5px; border-radius: 4px; }
+.ap-fchk { text-align: right; }
+.ap-frow:not(.h):hover { background: linear-gradient(90deg, transparent, rgba(132,0,85,.03), transparent); }
+.ap-schem-wrap { margin-top: 34px; max-width: 250px; }
+.ap-schem { display: block; width: 100%; height: auto; overflow: visible; }
+.ap-schem .bg { fill: transparent; stroke: transparent; stroke-dasharray: 4 4; transition: fill .35s, stroke .35s; }
+.ap-schem .lb { opacity: 0; transition: opacity .35s; }
+.ap-schem[data-active="header"] .rg-header .bg, .ap-schem[data-active="lines"] .rg-lines .bg, .ap-schem[data-active="totals"] .rg-totals .bg { fill: rgba(132,0,85,.07); stroke: var(--ap-mag); }
+.ap-schem[data-active="header"] .rg-header .lb, .ap-schem[data-active="lines"] .rg-lines .lb, .ap-schem[data-active="totals"] .rg-totals .lb { opacity: 1; }
+@media (max-width: 1180px) { .ap-schem-wrap { display: none; } }
+@media (max-width: 991px) { .ap-frow { grid-template-columns: 1fr; gap: 4px; } .ap-fchk { text-align: left; } }
+
+/* no italics anywhere on this page */
+.ap, .ap * { font-style: normal !important; }
+
+/* ==========================================================================
+   Sensible /doc-types/bank-statements
+   Doc-Type Layout & Interactive Workbench Styles
+   ========================================================================== */
+
+/* ---------- Breadcrumbs ---------- */
+.bs-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--ap-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+  margin-bottom: 20px;
+}
+.bs-crumbs a { color: var(--ap-muted); transition: color 0.2s; }
+.bs-crumbs a:hover { color: var(--ap-mag); }
+.bs-crumbs span.sep { opacity: 0.5; }
+.bs-crumbs span.curr { color: var(--ap-ink); font-weight: 500; }
+
+/* ---------- Spec Chips Grid in Hero ---------- */
+.bs-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 28px 0 32px;
+  width: 100%;
+  max-width: 480px;
+}
+.bs-spec-card {
+  background: var(--ap-soft);
+  border: 1px solid var(--ap-line);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.bs-spec-label {
+  font-family: var(--ap-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+  margin-bottom: 3px;
+}
+.bs-spec-val {
+  font-family: var(--ap-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ap-ink);
+}
+
+/* ---------- Hero Workbench ---------- */
+.bs-workbench {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 12px;
+  box-shadow: 0 30px 70px rgba(75,5,50,0.14), 0 4px 14px rgba(26,21,32,0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+}
+.bs-wb-bar {
+  background: var(--ap-soft);
+  border-bottom: 1px solid var(--ap-line);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bs-wb-banks {
+  display: flex;
+  gap: 6px;
+}
+.bs-wb-bank-btn {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-family: var(--ap-mono);
+  border: 1px solid var(--ap-line);
+  background: #fff;
+  color: var(--ap-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-wb-bank-btn:hover { background: #fdfdfd; border-color: var(--ap-muted); }
+.bs-wb-bank-btn.active {
+  background: var(--ap-mag);
+  color: #fff;
+  border-color: var(--ap-mag);
+  font-weight: 500;
+}
+.bs-wb-views {
+  display: flex;
+  background: #e9e9ed;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.bs-wb-view-btn {
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: var(--ap-mono);
+  border: 0;
+  background: transparent;
+  color: var(--ap-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-wb-view-btn.active {
+  background: #fff;
+  color: var(--ap-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.bs-wb-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  position: relative;
+}
+.bs-wb-panel {
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+.bs-wb-panel.active {
+  display: flex;
+}
+
+/* Visual Anatomy Mode */
+.bs-anatomy-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+}
+.bs-doc-view {
+  background: #f8f8fa;
+  border-right: 1px solid var(--ap-line);
+  padding: 16px;
+  overflow-y: auto;
+}
+.bs-bbox-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 4px;
+  padding: 14px;
+  position: relative;
+  font-size: 11px;
+}
+.bs-bbox-box {
+  border: 1.5px dashed var(--ap-mag);
+  background: rgba(132, 0, 85, 0.05);
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-bbox-box:hover, .bs-bbox-box.active {
+  background: rgba(132, 0, 85, 0.12);
+  border-style: solid;
+}
+.bs-bbox-badge {
+  position: absolute;
+  top: -8px;
+  right: 6px;
+  background: var(--ap-mag);
+  color: #fff;
+  font-family: var(--ap-mono);
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.bs-bbox-badge.ok { background: var(--ap-ok); }
+.bs-bbox-badge.warn { background: var(--ap-warn); }
+
+.bs-side-inspector {
+  padding: 16px 18px;
+  background: #fff;
+  overflow-y: auto;
+  font-family: var(--ap-mono);
+  font-size: 11px;
+}
+.bs-inspect-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ap-muted);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ap-line);
+  display: flex;
+  justify-content: space-between;
+}
+.bs-inspect-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--ap-line);
+}
+.bs-inspect-row .k { color: var(--ap-muted); }
+.bs-inspect-row .v { color: var(--ap-ink); font-weight: 500; }
+.bs-inspect-row .v.code { color: var(--ap-mag); }
+.bs-inspect-row .v.ok { color: var(--ap-ok); }
+
+/* Code & JSON view panels */
+.bs-code-panel {
+  width: 100%;
+  height: 100%;
+  background: var(--ap-soft);
+  padding: 14px 18px;
+  overflow: auto;
+  font-family: var(--ap-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.bs-code-panel pre { margin: 0; }
+
+/* ---------- Institutional Matrix Section ---------- */
+.bs-matrix-filters {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+.bs-matrix-btn {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--ap-line);
+  background: #fff;
+  font-family: var(--ap-mono);
+  font-size: 0.8125rem;
+  color: var(--ap-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-matrix-btn:hover { border-color: var(--ap-muted); }
+.bs-matrix-btn.active {
+  background: var(--ap-ink);
+  color: #fff;
+  border-color: var(--ap-ink);
+}
+.bs-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.bs-bank-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 8px;
+  padding: 18px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.bs-bank-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26,21,32,0.06);
+  border-color: var(--ap-mag);
+}
+.bs-bank-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.bs-bank-name {
+  font-family: var(--ap-serif);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--ap-ink);
+}
+.bs-bank-badge {
+  font-family: var(--ap-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(46,123,64,0.1);
+  color: var(--ap-ok);
+  text-transform: uppercase;
+}
+.bs-bank-meta {
+  font-size: 0.8125rem;
+  color: var(--ap-body);
+  line-height: 1.45;
+  margin-bottom: 14px;
+  flex: 1;
+}
+.bs-bank-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--ap-mono);
+  font-size: 0.6875rem;
+  color: var(--ap-muted);
+  border-top: 1px solid var(--ap-line);
+  padding-top: 10px;
+}
+
+/* ---------- SenseML vs LLM Comparison Section ---------- */
+.bs-cmp-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: center;
+  background: var(--ap-soft);
+  border-radius: 16px;
+  padding: 48px;
+  border: 1px solid var(--ap-line);
+}
+.bs-cmp-list {
+  display: grid;
+  gap: 18px;
+}
+.bs-cmp-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.bs-cmp-item .bullet {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ap-mag);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+  margin-top: 2px;
+}
+.bs-cmp-item b {
+  display: block;
+  font-size: 1rem;
+  color: var(--ap-ink);
+  margin-bottom: 2px;
+}
+.bs-cmp-item p {
+  font-size: 0.9063rem;
+  color: var(--ap-body);
+  line-height: 1.5;
+}
+
+/* ---------- Use Cases Grid ---------- */
+.bs-usecase-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.bs-usecase-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 8px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.bs-usecase-card h3 {
+  font-family: var(--ap-serif);
+  font-size: 1.1875rem;
+  font-weight: 500;
+  margin: 16px 0 10px;
+}
+.bs-usecase-card p {
+  font-size: 0.9063rem;
+  line-height: 1.55;
+  color: var(--ap-body);
+  flex: 1;
+}
+.bs-usecase-tag {
+  font-family: var(--ap-mono);
+  font-size: 0.6875rem;
+  color: var(--ap-mag);
+  margin-top: 18px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Related Doc Types Grid ---------- */
+.bs-related-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+.bs-related-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 8px;
+  padding: 20px 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.bs-related-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--ap-mag);
+  box-shadow: 0 10px 30px rgba(132, 0, 85, 0.08);
+}
+.bs-related-card h4 {
+  font-family: var(--ap-serif);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  margin: 12px 0 6px;
+  color: var(--ap-ink);
+}
+.bs-related-card p {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ap-muted);
+  flex: 1;
+}
+.bs-related-arrow {
+  margin-top: 12px;
+  font-family: var(--ap-mono);
+  font-size: 0.75rem;
+  color: var(--ap-mag);
+  font-weight: 600;
+}
+
+/* ---------- Quickstart Tabbed Code Block ---------- */
+.bs-api-box {
+  background: #17121C;
+  border-radius: 12px;
+  overflow: hidden;
+  color: #E8E3DB;
+  font-family: var(--ap-mono);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+.bs-api-nav {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 4px 12px;
+}
+.bs-api-tab {
+  padding: 10px 16px;
+  background: transparent;
+  border: 0;
+  color: #8B857B;
+  font-family: var(--ap-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.bs-api-tab.active {
+  color: #FEFDFB;
+  border-bottom: 2px solid var(--ap-mag);
+  font-weight: 600;
+}
+.bs-api-code {
+  padding: 22px 24px;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  display: none;
+}
+.bs-api-code.active {
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1180px) {
+  .bs-bank-grid { grid-template-columns: repeat(3, 1fr); }
+  .bs-usecase-grid { grid-template-columns: repeat(2, 1fr); }
+  .bs-related-grid { grid-template-columns: repeat(3, 1fr); }
+  .bs-cmp-wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 991px) {
+  .bs-bank-grid { grid-template-columns: repeat(2, 1fr); }
+  .bs-anatomy-split { grid-template-columns: 1fr; }
+  .bs-doc-view { border-right: 0; border-bottom: 1px solid var(--ap-line); max-height: 280px; }
+  .bs-related-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 767px) {
+  .bs-bank-grid, .bs-usecase-grid, .bs-related-grid { grid-template-columns: 1fr; }
+  .bs-spec-grid { grid-template-columns: 1fr; }
+  .bs-cmp-wrap { padding: 24px 16px; }
+}
+
+/* ==========================================================================
+   Sensible /solutions/legal (contract data extraction for legal teams)
+   Builds on ap/ap.css + bs/bs.css primitives. Every selector is prefixed lg-
+   so it cannot collide with the site's Webflow classes.
+   ========================================================================== */
+
+/* ---------- First fold: hero + stats ribbon fill exactly one desktop viewport ---------- */
+@media (min-width: 992px) {
+  #lg-hero.ap-hero { min-height: calc(100vh - 148px); align-items: stretch; }
+  #lg-hero .ap-hero-copy { padding-top: 28px; padding-bottom: 28px; }
+  #lg-hero .bs-crumbs { margin-bottom: 14px; }
+  #lg-hero .ap-tag { padding: 8px 13px; font-size: .75rem; }
+  #lg-hero .ap-h1 { font-size: clamp(1.75rem, min(3.4vw, 5.2vh), 2.9rem); margin: 16px 0; }
+  #lg-hero .ap-hero-copy .ap-lede { font-size: 1rem; margin-bottom: 18px; }
+  #lg-hero .bs-spec-grid { gap: 8px; margin: 0 0 20px; }
+  #lg-hero .bs-spec-card { padding: 8px 12px; }
+  #lg-hero .ap-btn { padding: 11px 18px; font-size: .875rem; }
+  #lg-hero .ap-btns { flex-wrap: nowrap; gap: 10px; }
+  #lg-hero .ap-note { margin-top: 12px; }
+  #lg-hero .ap-hero-panel { padding-top: 32px; padding-bottom: 32px; }
+  .lg-stage { height: clamp(430px, calc(100vh - 148px - 72px), 780px); }
+}
+@media (min-width: 992px) and (max-height: 760px) {
+  #lg-hero .bs-spec-grid, #lg-hero .bs-crumbs { display: none; }
+}
+
+/* ---------- Hero stage: contract on the left, live extraction on the right ---------- */
+.lg-stage {
+  background: #fff; border: 1px solid var(--ap-line); border-radius: 14px; position: relative; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(75,5,50,.16), 0 4px 14px rgba(26,21,32,.05); display: flex; flex-direction: column;
+}
+.lg-stage-bar { background: var(--ap-soft); border-bottom: 1px solid var(--ap-line); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lg-stage-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.lg-pill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--ap-mono); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ap-body); }
+.lg-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--ap-mag); animation: lg-blink 1.1s infinite; }
+.lg-stage.done .lg-pill i { background: var(--ap-ok); animation: none; }
+@keyframes lg-blink { 50% { opacity: .2; } }
+.lg-stage-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); position: relative; }
+
+.lg-paper-pane { background: #F4F1F5; padding: 16px; min-height: 0; overflow: hidden; display: flex; }
+.lg-sheet {
+  display: none; flex: 1; background: #fff; border: 1px solid var(--ap-line); border-radius: 4px; box-shadow: 5px 5px 0 var(--ap-line);
+  padding: 16px 20px; font-family: var(--ap-serif); font-size: clamp(9.5px, 1.18vh, 11.6px); line-height: 1.55; color: var(--ap-body); overflow: hidden;
+}
+.lg-sheet.active { display: block; }
+.lg-sheet-head { display: flex; justify-content: space-between; font-family: var(--ap-mono); font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ap-muted); margin-bottom: 6px; }
+.lg-sheet h4 { font-family: var(--ap-serif); font-size: 1.45em; font-weight: 500; color: var(--ap-ink); margin: 0 0 .7em; }
+.lg-sheet h5 { font-family: var(--ap-serif); font-size: 1em; font-weight: 600; color: var(--ap-ink); margin: .9em 0 .15em; }
+.lg-sheet p { margin: 0; }
+.lg-hl { background: transparent; color: inherit; border-radius: 2px; padding: 0 1px; box-shadow: inset 0 -1.5px 0 transparent; transition: background .35s, box-shadow .35s; cursor: pointer; }
+.lg-hl.seen { background: rgba(132,0,85,.10); box-shadow: inset 0 -1.5px 0 rgba(132,0,85,.5); }
+.lg-hl.active { background: rgba(132,0,85,.26); box-shadow: inset 0 -2px 0 var(--ap-mag), 0 0 0 2px rgba(132,0,85,.18); }
+.lg-hl.rev.seen { background: rgba(216,139,31,.14); box-shadow: inset 0 -1.5px 0 rgba(216,139,31,.7); }
+.lg-hl.rev.active { background: rgba(216,139,31,.30); box-shadow: inset 0 -2px 0 var(--ap-warn), 0 0 0 2px rgba(216,139,31,.2); }
+.lg-hl.blk { display: block; margin-top: .9em; padding: 2px 4px 4px; }
+.lg-sig { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lg-sig > div { border-top: 1px solid var(--ap-ink); padding-top: 3px; font-size: .92em; }
+.lg-sig i { display: block; font-size: 1.35em; color: var(--ap-mag); line-height: 1; margin-bottom: 2px; }
+@media (min-width: 992px) and (max-height: 820px) {
+  .lg-sheet { padding: 12px 16px; line-height: 1.45; }
+  .lg-sheet h4 { margin-bottom: .45em; }
+  .lg-sheet h5 { margin-top: .6em; }
+  .lg-hl.blk { margin-top: .6em; }
+}
+@media (min-width: 992px) and (max-height: 740px) { .lg-hl.blk { display: none; } }
+
+.lg-json-pane { background: #fff; color: var(--ap-ink); display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--ap-line); }
+.lg-json-head { display: flex; justify-content: space-between; padding: 10px 16px; font-family: var(--ap-mono); font-size: .625rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ap-muted); border-bottom: 1px solid var(--ap-line); }
+.lg-json-head b { color: var(--ap-ok); font-weight: 500; }
+.lg-rows { display: none; flex: 1; min-height: 0; overflow: hidden; padding: 4px 0; }
+.lg-rows.active { display: block; }
+.lg-row {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; padding: 6px 16px 6px 18px;
+  border-left: 2px solid transparent; cursor: pointer; transition: background .25s, border-color .25s, opacity .4s, transform .4s;
+}
+.lg-row .k { font-family: var(--ap-mono); font-size: 10px; color: var(--ap-muted); letter-spacing: .02em; }
+.lg-row .v { grid-column: 1; font-family: var(--ap-mono); font-size: 11.5px; color: var(--ap-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-row .v.s { color: var(--ap-ink); } .lg-row .v.n { color: var(--ap-mag); }
+.lg-row .c { grid-row: 1 / 3; grid-column: 2; align-self: center; font-family: var(--ap-mono); font-size: 10px; padding: 2px 7px; border-radius: 999px; background: rgba(46,123,64,.1); color: var(--ap-ok); white-space: nowrap; }
+.lg-row.flag .c { background: rgba(216,139,31,.16); color: #A8620F; }
+.lg-row.active { background: rgba(132,0,85,.06); border-left-color: var(--ap-mag); }
+.lg-row.flag.active { background: rgba(216,139,31,.08); border-left-color: var(--ap-warn); }
+.lg-stage.lg-anim .lg-row:not(.show) { opacity: 0; transform: translateX(10px); }
+.lg-detail { border-top: 1px solid var(--ap-line); background: var(--ap-soft); padding: 10px 16px 12px; font-size: 11px; line-height: 1.55; color: var(--ap-body); min-height: 74px; }
+.lg-detail .l { font-family: var(--ap-mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ap-muted); margin-right: 8px; }
+.lg-detail b { font-weight: 500; color: var(--ap-ink); }
+.lg-detail .chk { color: var(--ap-ok); } .lg-detail.flag .chk { color: #A8620F; }
+
+.lg-conn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; overflow: visible; }
+.lg-conn path { fill: none; stroke: var(--ap-mag); stroke-width: 1.8; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.lg-conn circle { fill: var(--ap-mag); opacity: 0; }
+.lg-conn.on path { animation: lg-draw .5s ease-out forwards; }
+.lg-conn.on circle { opacity: 1; transition: opacity .2s; }
+.lg-conn.warn path { stroke: var(--ap-warn); } .lg-conn.warn circle { fill: var(--ap-warn); }
+@keyframes lg-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+.lg-stage-foot { display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--ap-line); background: var(--ap-soft); font-family: var(--ap-mono); font-size: 10.5px; color: var(--ap-muted); }
+.lg-stage-foot b { color: var(--ap-ink); font-weight: 500; }
+.lg-prog { flex: 1; height: 4px; border-radius: 2px; background: var(--ap-line); overflow: hidden; min-width: 40px; }
+.lg-prog i { display: block; height: 100%; width: 100%; background: var(--ap-mag); transition: width .5s; }
+.lg-stage.done .lg-prog i { background: var(--ap-ok); }
+@media (max-width: 991px) {
+  .lg-stage { height: auto; }
+  .lg-stage-body { grid-template-columns: minmax(0, 1fr); }
+  .lg-conn { display: none; }
+  .lg-sheet { min-height: 0; }
+  .lg-rows { overflow: visible; }
+}
+
+@media (min-width: 992px) and (max-height: 820px) {
+  .lg-rows { padding: 2px 0; }
+  .lg-row { padding: 3px 14px 3px 16px; }
+  .lg-row .k { font-size: 9.5px; }
+  .lg-row .v { font-size: 11px; }
+  .lg-detail { min-height: 62px; padding: 7px 14px 9px; font-size: 10.5px; line-height: 1.45; }
+  .lg-json-head { padding: 8px 14px; }
+}
+@media (min-width: 992px) and (max-height: 770px) {
+  .lg-detail { display: none; }
+}
+
+/* ---------- Clause locator ---------- */
+.lg-clause-wrap { display: flex; flex-direction: column; gap: 28px; }
+.lg-chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.lg-chip {
+  padding: 8px 18px; border-radius: 999px; border: 1px solid var(--ap-line); background: #fff; cursor: pointer;
+  font-family: var(--ap-mono); font-size: .8125rem; color: var(--ap-body); transition: background .2s, color .2s, border-color .2s, transform .2s;
+}
+.lg-chip:hover { border-color: var(--ap-muted); transform: translateY(-1px); }
+.lg-chip.active { background: var(--ap-mag); border-color: var(--ap-mag); color: #fff; font-weight: 500; }
+.lg-papers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.lg-paper { background: #fff; border: 1px solid var(--ap-line); border-radius: 10px; box-shadow: 5px 5px 0 var(--ap-line); padding: 20px 20px 18px; display: flex; flex-direction: column; min-width: 0; }
+.lg-paper-firm { font-family: var(--ap-mono); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ap-muted); display: flex; justify-content: space-between; margin-bottom: 4px; }
+.lg-paper h3 { font-family: var(--ap-serif); font-weight: 500; font-size: 1.125rem; margin: 0 0 14px; color: var(--ap-ink); }
+.lg-secs { display: grid; gap: 3px; }
+.lg-sec {
+  position: relative; display: grid; grid-template-columns: 62px 1fr; gap: 8px; align-items: baseline; padding: 7px 10px; border-radius: 4px;
+  font-family: var(--ap-serif); font-size: .875rem; color: var(--ap-body); border-left: 3px solid transparent;
+  transition: background .35s, border-color .35s, color .35s;
+}
+.lg-sec .n { font-family: var(--ap-mono); font-size: .72rem; color: var(--ap-muted); transition: color .35s; white-space: nowrap; }
+.lg-sec.hit { background: rgba(132,0,85,.08); border-left-color: var(--ap-mag); color: var(--ap-ink); }
+.lg-sec.hit .n { color: var(--ap-mag); font-weight: 600; }
+.lg-sec .m { position: absolute; right: 8px; top: 50%; transform: translateY(-50%) scale(.8); opacity: 0; font-family: var(--ap-mono); font-size: .58rem; letter-spacing: .06em; background: var(--ap-mag); color: #fff; padding: 2px 6px; border-radius: 3px; transition: opacity .3s, transform .3s; white-space: nowrap; }
+.lg-sec.hit .m { opacity: 1; transform: translateY(-50%) scale(1); }
+.lg-sec-quote { font-family: var(--ap-serif); font-size: .8125rem; line-height: 1.5; color: var(--ap-body); margin: 14px 0 12px; min-height: 4.6em; padding: 10px 12px; background: var(--ap-soft); border-radius: 4px; border-left: 2px solid var(--ap-mag); }
+.lg-sec-quote b { color: var(--ap-ink); font-weight: 600; }
+.lg-out { margin-top: auto; background: #17121C; border-radius: 6px; padding: 12px 14px; font-family: var(--ap-mono); font-size: 10.5px; line-height: 1.6; color: #E8E3DB; white-space: pre; overflow-x: auto; }
+.lg-out .k { color: #E58BC4; } .lg-out .s { color: #8AD59B; } .lg-out .n { color: #F0B66B; }
+.lg-clause-note { text-align: center; font-family: var(--ap-mono); font-size: .75rem; color: var(--ap-muted); letter-spacing: .04em; }
+
+/* ---------- Amendment chain ---------- */
+.lg-amend { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 72px; align-items: center; }
+.lg-chain { position: relative; display: grid; gap: 22px; padding-left: 44px; }
+.lg-chain::before { content: ''; position: absolute; left: 14px; top: 26px; bottom: 26px; width: 2px; background: var(--ap-line); }
+.lg-chain-fill { position: absolute; left: 14px; top: 26px; width: 2px; height: 0; background: var(--ap-mag); }
+.lg-node { position: relative; text-align: left; background: #fff; border: 1px solid var(--ap-line); border-radius: 8px; padding: 16px 18px; cursor: pointer; transition: border-color .25s, box-shadow .25s, transform .25s; font: inherit; color: inherit; }
+.lg-node::before { content: ''; position: absolute; left: -38px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; background: #fff; border: 2px solid var(--ap-line); transition: border-color .25s, background .25s; }
+.lg-node:hover { transform: translateX(3px); }
+.lg-node.active { border-color: var(--ap-mag); box-shadow: 0 8px 24px rgba(132,0,85,.08); }
+.lg-node.active::before, .lg-node.seen::before { border-color: var(--ap-mag); background: var(--ap-mag); }
+.lg-node .t { display: flex; justify-content: space-between; gap: 10px; font-family: var(--ap-mono); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ap-muted); }
+.lg-node .t b { color: var(--ap-mag); font-weight: 500; }
+.lg-node h4 { font-family: var(--ap-serif); font-weight: 500; font-size: 1.0625rem; margin: 6px 0 4px; color: var(--ap-ink); }
+.lg-node p { font-size: .875rem; color: var(--ap-body); line-height: 1.45; margin: 0; }
+.lg-rec { background: #17121C; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.1); }
+.lg-rec-bar { display: flex; justify-content: space-between; padding: 11px 18px; font-family: var(--ap-mono); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; color: #8B857B; background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.08); }
+.lg-rec-bar b { color: #8AD59B; font-weight: 500; }
+.lg-rec-body { padding: 20px 22px 22px; font-family: var(--ap-mono); font-size: .8rem; line-height: 1.65; color: #E8E3DB; white-space: pre; overflow-x: auto; min-height: 292px; }
+.lg-rec-body .k { color: #E58BC4; } .lg-rec-body .s { color: #8AD59B; } .lg-rec-body .n { color: #F0B66B; } .lg-rec-body .c { color: #8B857B; }
+
+/* ---------- Contract type chips ---------- */
+.lg-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.lg-type-col { background: #fff; border: 1px solid var(--ap-line); border-radius: 10px; padding: 32px 32px 34px; }
+.lg-type-col h3 { font-family: var(--ap-serif); font-weight: 500; font-size: 1.375rem; margin: 14px 0 6px; }
+.lg-type-col > p { font-size: .9375rem; color: var(--ap-body); margin-bottom: 22px; }
+.lg-type-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.lg-type-list span { font-family: var(--ap-mono); font-size: .78rem; padding: 7px 12px; border: 1px solid var(--ap-line); border-radius: 999px; background: var(--ap-soft); color: var(--ap-ink); transition: background .2s, border-color .2s, color .2s, transform .2s; cursor: default; }
+.lg-type-list span:hover { background: #fff; border-color: var(--ap-mag); color: var(--ap-mag); transform: translateY(-2px); }
+.lg-type-foot { margin-top: 28px; text-align: center; font-size: 1rem; color: var(--ap-body); max-width: 70ch; margin-left: auto; margin-right: auto; }
+
+/* ---------- Fields explorer schematic ---------- */
+.lg-schem-wrap { margin-top: 34px; max-width: 200px; }
+.lg-schem { display: block; width: 100%; height: auto; overflow: visible; }
+.lg-schem .bg { fill: transparent; stroke: transparent; stroke-dasharray: 4 4; transition: fill .35s, stroke .35s; }
+.lg-schem .lb { opacity: 0; transition: opacity .35s; }
+.lg-schem[data-active="parties"] .rg-parties .bg, .lg-schem[data-active="financial"] .rg-financial .bg,
+.lg-schem[data-active="clauses"] .rg-clauses .bg, .lg-schem[data-active="sign"] .rg-sign .bg { fill: rgba(132,0,85,.07); stroke: var(--ap-mag); }
+.lg-schem[data-active="parties"] .rg-parties .lb, .lg-schem[data-active="financial"] .rg-financial .lb,
+.lg-schem[data-active="clauses"] .rg-clauses .lb, .lg-schem[data-active="sign"] .rg-sign .lb { opacity: 1; }
+.ap-type.t-currency { background: rgba(46,123,64,.1); color: var(--ap-ok); }
+.ap-type.t-clause { background: rgba(132,0,85,.1); color: var(--ap-mag); }
+.ap-type.t-array { background: #EDEAF6; color: #4D3E8C; }
+.ap-type.t-number { background: #FFF1DE; color: #A8620F; }
+
+/* ---------- Security trio ---------- */
+.lg-sec3 .ap-cell h3 { margin-top: 26px; }
+
+/* ---------- Pricing / trial strip ---------- */
+.lg-trial { margin-top: 56px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--ap-line); border-radius: 10px; background: #fff; }
+.lg-trial > div { padding: 24px 26px; border-left: 1px solid var(--ap-line); }
+.lg-trial > div:first-child { border-left: 0; }
+.lg-trial b { display: block; font-family: var(--ap-serif); font-weight: 500; font-size: 1.1875rem; margin-bottom: 4px; color: var(--ap-ink); }
+.lg-trial span { font-size: .9rem; color: var(--ap-body); line-height: 1.5; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) {
+  .lg-amend { gap: 40px; }
+  .lg-papers { grid-template-columns: 1fr; }
+}
+@media (max-width: 991px) {
+  .lg-amend { grid-template-columns: minmax(0, 1fr); }
+  .lg-types, .lg-trial { grid-template-columns: minmax(0, 1fr); }
+  .ap-fields, .ap-val, .ap-faq { grid-template-columns: minmax(0, 1fr); }
+  .ap-ftabs { overflow-x: auto; scrollbar-width: none; }
+  .ap-ftabs .ap-ftab { flex: none; }
+  .lg-trial > div { border-left: 0; border-top: 1px solid var(--ap-line); }
+  .lg-trial > div:first-child { border-top: 0; }
+}
+@media (max-width: 767px) {
+  .lg-type-col { padding: 24px 20px; }
+  .lg-chain { padding-left: 34px; }
+  .lg-node::before { left: -30px; }
+  .lg-chain::before, .lg-chain-fill { left: 8px; }
+  .lg-rec-body { font-size: .72rem; padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .lg-scan { display: none; } }
+
+  </style>
+</head>
+<body>
+<!-- Navbar -->
+  <nav class="navbar">
+    <div class="container navbar-inner">
+      <a href="https://www.sensible.so" class="nav-logo" style="display: flex; align-items: center;">
+        <img src="https://cdn.prod.website-files.com/69d90e4abf8f50428ec28825/69d90e4abf8f50428ec2888c_LogoDefault.svg" alt="Sensible" style="height: 28px; display: block;" />
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="https://www.sensible.so/how-it-works">Product</a></li>
+        <li><a href="https://www.sensible.so/solutions">Solutions</a></li>
+        <li><a href="https://www.sensible.so/pricing">Pricing</a></li>
+        <li><a href="https://www.sensible.so/customers">Customers</a></li>
+        <li><a href="https://docs.sensible.so" target="_blank" rel="noopener">Docs ↗</a></li>
+      </ul>
+
+      <div class="nav-cta-group" style="display: flex; gap: 16px; align-items: center;">
+        <a href="https://app.sensible.so/signin/" class="nav-signin">Sign in</a>
+        <a href="https://www.sensible.so/meeting" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8125rem;">Book a Demo</a>
+      </div>
+
+      <button type="button" class="mobile-toggle" aria-label="Menu" aria-expanded="false" aria-controls="mobile-panel" onclick="var p=document.getElementById('mobile-panel');var open=p.classList.toggle('is-open');this.setAttribute('aria-expanded',open);this.textContent=open?'✕':'☰';">☰</button>
+    </div>
+
+    <div class="mobile-panel" id="mobile-panel">
+      <a class="mobile-link" href="https://www.sensible.so/how-it-works">Product</a>
+      <a class="mobile-link" href="https://www.sensible.so/solutions">Solutions</a>
+      <a class="mobile-link" href="https://www.sensible.so/pricing">Pricing</a>
+      <a class="mobile-link" href="https://www.sensible.so/customers">Customers</a>
+      <a class="mobile-link" href="https://www.sensible.so/managed-services">Managed Services</a>
+      <a class="mobile-link" href="https://docs.sensible.so" target="_blank" rel="noopener">Docs ↗</a>
+      <a class="mobile-signin" href="https://app.sensible.so/signin/">Sign in</a>
+      <a class="mobile-cta" href="https://www.sensible.so/meeting">Book a Demo</a>
+    </div>
+  </nav>
+
+  
+<div class="ap">
+
+  <!-- 1. HERO: SPEC HEADER + INTERACTIVE CONTRACT WORKBENCH -->
+  <section class="ap-hero" id="lg-hero">
+    <div class="ap-hero-copy">
+      <div class="bs-crumbs" data-hero>
+        <a href="https://www.sensible.so">Home</a><span class="sep">/</span>
+        <a href="https://www.sensible.so/solutions">Solutions</a><span class="sep">/</span>
+        <span class="curr">Legal</span>
+      </div>
+      <span class="ap-tag" data-hero>[ LEGAL · CONTRACT EXTRACTION ]</span>
+      <h1 class="ap-h1">Contract data extraction <em>for legal teams</em></h1>
+      <p class="ap-lede" data-hero>Turn MSAs, NDAs, leases, and vendor agreements into schema-validated JSON for CLM, obligation tracking, renewals, and compliance.</p>
+
+      <div class="bs-spec-grid" data-hero>
+        <div class="bs-spec-card"><div class="bs-spec-label">Doc Type ID</div><div class="bs-spec-val">contract</div></div>
+        <div class="bs-spec-card"><div class="bs-spec-label">Contract Types</div><div class="bs-spec-val">MSA, NDA, SaaS, lease</div></div>
+        <div class="bs-spec-card"><div class="bs-spec-label">Formats</div><div class="bs-spec-val">PDF, DOCX, TIFF, PNG</div></div>
+        <div class="bs-spec-card"><div class="bs-spec-label">Output</div><div class="bs-spec-val">JSON + bounding boxes</div></div>
+      </div>
+
+      <div class="ap-btns" data-hero>
+        <a class="ap-btn p" href="https://app.sensible.so/register/">Test with your contract</a>
+        <a class="ap-btn s" href="#lg-clauses">How clauses are found</a>
+      </div>
+      <div class="ap-note" data-hero>14-day free trial · No credit card</div>
+    </div>
+
+    <div class="ap-hero-panel">
+      <svg class="ap-hero-art" viewBox="0 0 1000 760" preserveAspectRatio="xMaxYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><rect class="ap-hr" x="600" y="-40" width="420" height="320" fill="rgba(255,255,255,.30)" stroke="#fff" stroke-width="2.5"/><rect class="ap-hr" x="470" y="120" width="400" height="360" fill="rgba(255,255,255,.30)" stroke="#fff" stroke-width="2.5"/><rect class="ap-hr" x="330" y="300" width="390" height="360" fill="rgba(255,255,255,.30)" stroke="#fff" stroke-width="2.5"/><rect class="ap-hr" x="170" y="440" width="380" height="360" fill="rgba(255,255,255,.30)" stroke="#fff" stroke-width="2.5"/><rect class="ap-hr" x="-10" y="560" width="330" height="300" fill="rgba(255,255,255,.30)" stroke="#fff" stroke-width="2.5"/></svg>
+
+      <div class="lg-stage" id="lg-stage"><div class="lg-stage-bar"><div class="lg-stage-tabs"><button class="bs-wb-bank-btn lg-ctab active" data-k="msa">MSA</button><button class="bs-wb-bank-btn lg-ctab" data-k="nda">NDA</button><button class="bs-wb-bank-btn lg-ctab" data-k="saas">SaaS agreement</button><button class="bs-wb-bank-btn lg-ctab" data-k="lease">Commercial lease</button></div><span class="lg-pill"><i></i><span id="lg-pill-t">Extracting</span></span></div><div class="lg-stage-body"><div class="lg-paper-pane"><div class="lg-sheet active" data-k="msa" data-file="MSA-2024-0418-NB.pdf"><div class="lg-sheet-head"><span>MSA-2024-0418-NB</span><span>Page 1 of 12</span></div><h4>Master Services Agreement</h4><p>This Master Services Agreement is entered into as of <mark class="lg-hl" data-f="effective_date">April 18, 2024</mark>, by and between Client <mark class="lg-hl" data-f="client_party">Stillwater Robotics, Inc.</mark>, a Delaware corporation, and Provider <mark class="lg-hl" data-f="provider_party">Northbridge Studio LLC</mark>, a Massachusetts limited liability company.</p><h5>2. Compensation &amp; Payment</h5><p>Client shall pay Provider the fees set forth in each SOW. Invoices are due <mark class="lg-hl" data-f="payment_terms_days">Net 30</mark> from the date of issuance. Undisputed amounts not paid when due accrue interest at <mark class="lg-hl" data-f="late_interest_pct_per_month">1.5% per month</mark> or the maximum rate permitted by law.</p><h5>3. Term &amp; Termination</h5><p>The initial term shall continue for twenty-four (24) months and shall <mark class="lg-hl" data-f="auto_renewal">renew for successive one-year periods</mark> unless terminated by either Party upon <mark class="lg-hl" data-f="termination_notice_days">sixty (60) days’ written notice</mark>.</p><h5>4. Governing Law</h5><p>This Agreement is governed by the laws of the Commonwealth of <mark class="lg-hl" data-f="governing_law">Massachusetts</mark>.</p><div class="lg-hl blk" data-f="signatories"><div class="lg-sig"><div><i>E. Whitmore</i>Elena Whitmore<br>VP, Operations</div><div><i>J. Northbridge</i>Julian Northbridge<br>Managing Partner</div></div></div></div><div class="lg-sheet" data-k="nda" data-file="Halcyon-Meridian-NDA.pdf"><div class="lg-sheet-head"><span>NDA-2025-0109</span><span>Page 1 of 6</span></div><h4>Mutual Non-Disclosure Agreement</h4><p>This Mutual Non-Disclosure Agreement is effective <mark class="lg-hl" data-f="effective_date">January 9, 2025</mark> between <mark class="lg-hl" data-f="disclosing_party">Halcyon Biologics, Inc.</mark> (“Discloser”) and <mark class="lg-hl" data-f="receiving_party">Meridian Capital Partners LP</mark> (“Recipient”). <mark class="lg-hl" data-f="mutual">Each party may disclose and receive Confidential Information</mark>.</p><h5>2. Term</h5><p>This Agreement continues for <mark class="lg-hl" data-f="term_months">thirty-six (36) months</mark> unless earlier terminated by either party.</p><h5>4. Confidentiality</h5><p>Obligations of confidentiality survive for <mark class="lg-hl" data-f="confidentiality_survival_years">five (5) years</mark> following expiration or termination. Neither party shall solicit the other’s employees for <mark class="lg-hl" data-f="non_solicit_months">twelve (12) months</mark>.</p><h5>9. Governing Law</h5><p>This Agreement is governed by the laws of the State of <mark class="lg-hl" data-f="governing_law">New York</mark>.</p><div class="lg-hl blk" data-f="signatories"><div class="lg-sig"><div><i>P. Raman</i>Dr. Priya Raman<br>Chief Executive Officer</div><div><i>M. Hale</i>Marcus Hale<br>General Partner</div></div></div></div><div class="lg-sheet" data-k="saas" data-file="Cobalt-Redwood-SaaS.pdf"><div class="lg-sheet-head"><span>SUB-2025-0301</span><span>Page 1 of 18</span></div><h4>Subscription Agreement</h4><p>This Subscription Agreement is effective <mark class="lg-hl" data-f="effective_date">March 1, 2025</mark>. <mark class="lg-hl" data-f="vendor_party">Cobalt Analytics, Inc.</mark> (“Vendor”) grants <mark class="lg-hl" data-f="customer_party">Redwood Health Systems</mark> (“Customer”) a subscription to the Services.</p><h5>3. Fees</h5><p>Customer shall pay an Annual Subscription Fee of <mark class="lg-hl" data-f="annual_fee">$184,000</mark>, invoiced annually and payable <mark class="lg-hl" data-f="payment_terms_days">Net 45</mark>.</p><h5>12. Renewal</h5><p>The Subscription Term renews for successive 12-month periods unless either party gives notice at least <mark class="lg-hl" data-f="renewal_notice_days">ninety (90) days</mark> before the renewal date.</p><h5>14. Liability &amp; Service Levels</h5><p>Each party’s aggregate liability is limited to <mark class="lg-hl" data-f="liability_cap_months_of_fees">the fees paid in the twelve (12) months</mark> preceding the claim. Vendor commits to <mark class="lg-hl" data-f="sla_uptime_pct">99.9% uptime</mark>.</p><h5>20. Governing Law</h5><p>This Agreement is governed by the laws of the State of <mark class="lg-hl" data-f="governing_law">Delaware</mark>.</p></div><div class="lg-sheet" data-k="lease" data-file="Pinecrest-Aldous-Lease.pdf"><div class="lg-sheet-head"><span>LSE-2024-0901</span><span>Page 1 of 34</span></div><h4>Commercial Lease Agreement</h4><p>This Commercial Lease is made between <mark class="lg-hl" data-f="landlord">Pinecrest Properties LLC</mark> (“Landlord”) and <mark class="lg-hl" data-f="tenant">Aldous &amp; Wren Studio LLC</mark> (“Tenant”) for <mark class="lg-hl" data-f="premises">Suite 300, 88 Harbor Street, Boston, MA 02110</mark>.</p><h5>2. Term</h5><p>The Commencement Date is <mark class="lg-hl" data-f="commencement_date">September 1, 2024</mark> and the term is <mark class="lg-hl" data-f="term_months">sixty (60) months</mark>.</p><h5>4. Rent</h5><p>Base Rent is <mark class="lg-hl" data-f="base_rent_monthly">$14,500.00 per month</mark>, increasing <mark class="lg-hl" data-f="rent_escalation_pct_annual">3% annually</mark> on each anniversary. Tenant shall deposit <mark class="lg-hl" data-f="security_deposit">$29,000.00</mark> as security.</p><h5>26. Renewal Option</h5><p>Tenant may extend for one five-year term by written notice given not less than <mark class="lg-hl rev" data-f="renewal_option_notice_days">six (6) months</mark> before expiration.</p></div></div><div class="lg-json-pane"><div class="lg-json-head"><span>Extracted fields</span><b>Schema valid</b></div><div class="lg-rows active" data-k="msa"><div class="lg-row show" data-f="effective_date" data-conf="0.99" data-flag="0" data-src="as of April 18, 2024" data-loc="p.1 · [64, 148, 118, 14]" data-chk="ISO 8601, printed text kept as source"><span class="k">"effective_date"</span><span class="v s">"2024-04-18"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="client_party" data-conf="0.99" data-flag="0" data-src="Client Stillwater Robotics, Inc., a Delaware corporation" data-loc="p.1 · [64, 176, 190, 14]" data-chk="Role resolved: client"><span class="k">"client_party"</span><span class="v s">"Stillwater Robotics, Inc."</span><span class="c">0.99</span></div><div class="lg-row show" data-f="provider_party" data-conf="0.99" data-flag="0" data-src="Provider Northbridge Studio LLC, a Massachusetts LLC" data-loc="p.1 · [64, 204, 180, 14]" data-chk="Role resolved: provider"><span class="k">"provider_party"</span><span class="v s">"Northbridge Studio LLC"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="payment_terms_days" data-conf="0.98" data-flag="0" data-src="Invoices are due Net 30" data-loc="p.2 · [64, 120, 52, 14]" data-chk="Typed as a number, not prose"><span class="k">"payment_terms_days"</span><span class="v n">30</span><span class="c">0.98</span></div><div class="lg-row show" data-f="late_interest_pct_per_month" data-conf="0.97" data-flag="0" data-src="accrue interest at 1.5% per month" data-loc="p.2 · [64, 158, 96, 14]" data-chk="Percentage normalized"><span class="k">"late_interest_pct_per_month"</span><span class="v n">1.5</span><span class="c">0.97</span></div><div class="lg-row show" data-f="auto_renewal" data-conf="0.96" data-flag="0" data-src="renew for successive one-year periods" data-loc="p.3 · [64, 110, 240, 14]" data-chk="Found by meaning, not position"><span class="k">"auto_renewal"</span><span class="v n">true</span><span class="c">0.96</span></div><div class="lg-row show" data-f="termination_notice_days" data-conf="0.97" data-flag="0" data-src="sixty (60) days’ written notice" data-loc="p.3 · [64, 138, 210, 14]" data-chk="Spelled-out number returned as 60"><span class="k">"termination_notice_days"</span><span class="v n">60</span><span class="c">0.97</span></div><div class="lg-row show" data-f="governing_law" data-conf="0.98" data-flag="0" data-src="laws of the Commonwealth of Massachusetts" data-loc="p.9 · [64, 232, 120, 14]" data-chk="Captured once, no conflicts found"><span class="k">"governing_law"</span><span class="v s">"Massachusetts"</span><span class="c">0.98</span></div><div class="lg-row show" data-f="signatories" data-conf="0.99" data-flag="0" data-src="Elena Whitmore, VP Operations · Julian Northbridge, Managing Partner" data-loc="p.12 · [64, 520, 482, 74]" data-chk="Match the preamble parties"><span class="k">"signatories"</span><span class="v n">[ 2 signatories ]</span><span class="c">0.99</span></div></div><div class="lg-rows" data-k="nda"><div class="lg-row show" data-f="effective_date" data-conf="0.99" data-flag="0" data-src="effective January 9, 2025" data-loc="p.1 · [60, 150, 120, 14]" data-chk="ISO 8601, printed text kept as source"><span class="k">"effective_date"</span><span class="v s">"2025-01-09"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="disclosing_party" data-conf="0.99" data-flag="0" data-src="Halcyon Biologics, Inc. (“Discloser”)" data-loc="p.1 · [60, 176, 170, 14]" data-chk="Role resolved: discloser"><span class="k">"disclosing_party"</span><span class="v s">"Halcyon Biologics, Inc."</span><span class="c">0.99</span></div><div class="lg-row show" data-f="receiving_party" data-conf="0.99" data-flag="0" data-src="Meridian Capital Partners LP (“Recipient”)" data-loc="p.1 · [60, 202, 210, 14]" data-chk="Role resolved: recipient"><span class="k">"receiving_party"</span><span class="v s">"Meridian Capital Partners LP"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="mutual" data-conf="0.97" data-flag="0" data-src="Each party may disclose and receive Confidential Information" data-loc="p.1 · [60, 230, 380, 14]" data-chk="Mutual vs. one-way detected"><span class="k">"mutual"</span><span class="v n">true</span><span class="c">0.97</span></div><div class="lg-row show" data-f="term_months" data-conf="0.98" data-flag="0" data-src="thirty-six (36) months" data-loc="p.2 · [60, 118, 160, 14]" data-chk="Spelled-out number returned as 36"><span class="k">"term_months"</span><span class="v n">36</span><span class="c">0.98</span></div><div class="lg-row show" data-f="confidentiality_survival_years" data-conf="0.96" data-flag="0" data-src="survive for five (5) years" data-loc="p.3 · [60, 140, 150, 14]" data-chk="Found by meaning, not position"><span class="k">"confidentiality_survival_years"</span><span class="v n">5</span><span class="c">0.96</span></div><div class="lg-row show" data-f="non_solicit_months" data-conf="0.95" data-flag="0" data-src="solicit the other’s employees for twelve (12) months" data-loc="p.3 · [60, 168, 140, 14]" data-chk="Found by meaning, not position"><span class="k">"non_solicit_months"</span><span class="v n">12</span><span class="c">0.95</span></div><div class="lg-row show" data-f="governing_law" data-conf="0.97" data-flag="0" data-src="laws of the State of New York" data-loc="p.5 · [60, 300, 90, 14]" data-chk="Law and venue captured separately"><span class="k">"governing_law"</span><span class="v s">"New York"</span><span class="c">0.97</span></div><div class="lg-row show" data-f="signatories" data-conf="0.99" data-flag="0" data-src="Dr. Priya Raman, CEO · Marcus Hale, General Partner" data-loc="p.6 · [60, 480, 486, 72]" data-chk="Signed on different dates, both kept"><span class="k">"signatories"</span><span class="v n">[ 2 signatories ]</span><span class="c">0.99</span></div></div><div class="lg-rows" data-k="saas"><div class="lg-row show" data-f="effective_date" data-conf="0.99" data-flag="0" data-src="effective March 1, 2025" data-loc="p.1 · [58, 140, 110, 14]" data-chk="ISO 8601, printed text kept as source"><span class="k">"effective_date"</span><span class="v s">"2025-03-01"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="vendor_party" data-conf="0.99" data-flag="0" data-src="Cobalt Analytics, Inc. (“Vendor”)" data-loc="p.1 · [58, 160, 160, 14]" data-chk="Role resolved: vendor"><span class="k">"vendor_party"</span><span class="v s">"Cobalt Analytics, Inc."</span><span class="c">0.99</span></div><div class="lg-row show" data-f="customer_party" data-conf="0.99" data-flag="0" data-src="Redwood Health Systems (“Customer”)" data-loc="p.1 · [58, 180, 170, 14]" data-chk="Role resolved: customer"><span class="k">"customer_party"</span><span class="v s">"Redwood Health Systems"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="annual_fee" data-conf="0.98" data-flag="0" data-src="Annual Subscription Fee of $184,000" data-loc="p.2 · [58, 118, 70, 14]" data-chk="Currency typed with unit"><span class="k">"annual_fee"</span><span class="v n">184000</span><span class="c">0.98</span></div><div class="lg-row show" data-f="payment_terms_days" data-conf="0.98" data-flag="0" data-src="payable Net 45" data-loc="p.2 · [58, 140, 60, 14]" data-chk="Typed as a number, not prose"><span class="k">"payment_terms_days"</span><span class="v n">45</span><span class="c">0.98</span></div><div class="lg-row show" data-f="renewal_notice_days" data-conf="0.96" data-flag="0" data-src="notice at least ninety (90) days before the renewal date" data-loc="p.9 · [58, 262, 130, 14]" data-chk="Found by meaning, not position"><span class="k">"renewal_notice_days"</span><span class="v n">90</span><span class="c">0.96</span></div><div class="lg-row show" data-f="liability_cap_months_of_fees" data-conf="0.95" data-flag="0" data-src="limited to the fees paid in the twelve (12) months" data-loc="p.11 · [58, 180, 230, 14]" data-chk="Cap normalized to months of fees"><span class="k">"liability_cap_months_of_fees"</span><span class="v n">12</span><span class="c">0.95</span></div><div class="lg-row show" data-f="sla_uptime_pct" data-conf="0.97" data-flag="0" data-src="Vendor commits to 99.9% uptime" data-loc="p.11 · [58, 212, 100, 14]" data-chk="Percentage normalized"><span class="k">"sla_uptime_pct"</span><span class="v n">99.9</span><span class="c">0.97</span></div><div class="lg-row show" data-f="governing_law" data-conf="0.97" data-flag="0" data-src="laws of the State of Delaware" data-loc="p.16 · [58, 330, 90, 14]" data-chk="Captured once, no conflicts found"><span class="k">"governing_law"</span><span class="v s">"Delaware"</span><span class="c">0.97</span></div></div><div class="lg-rows" data-k="lease"><div class="lg-row show" data-f="landlord" data-conf="0.99" data-flag="0" data-src="Pinecrest Properties LLC (“Landlord”)" data-loc="p.1 · [60, 152, 170, 14]" data-chk="Role resolved: landlord"><span class="k">"landlord"</span><span class="v s">"Pinecrest Properties LLC"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="tenant" data-conf="0.99" data-flag="0" data-src="Aldous &amp; Wren Studio LLC (“Tenant”)" data-loc="p.1 · [60, 172, 170, 14]" data-chk="Role resolved: tenant"><span class="k">"tenant"</span><span class="v s">"Aldous &amp; Wren Studio LLC"</span><span class="c">0.99</span></div><div class="lg-row show" data-f="premises" data-conf="0.98" data-flag="0" data-src="Suite 300, 88 Harbor Street, Boston, MA 02110" data-loc="p.1 · [60, 192, 300, 14]" data-chk="Address captured as one field"><span class="k">"premises"</span><span class="v s">"Suite 300, 88 Harbor Street, Boston, MA"</span><span class="c">0.98</span></div><div class="lg-row show" data-f="commencement_date" data-conf="0.98" data-flag="0" data-src="Commencement Date is September 1, 2024" data-loc="p.2 · [60, 118, 130, 14]" data-chk="ISO 8601, printed text kept as source"><span class="k">"commencement_date"</span><span class="v s">"2024-09-01"</span><span class="c">0.98</span></div><div class="lg-row show" data-f="term_months" data-conf="0.98" data-flag="0" data-src="the term is sixty (60) months" data-loc="p.2 · [60, 136, 130, 14]" data-chk="Spelled-out number returned as 60"><span class="k">"term_months"</span><span class="v n">60</span><span class="c">0.98</span></div><div class="lg-row show" data-f="base_rent_monthly" data-conf="0.98" data-flag="0" data-src="Base Rent is $14,500.00 per month" data-loc="p.6 · [60, 204, 130, 14]" data-chk="Currency typed with unit"><span class="k">"base_rent_monthly"</span><span class="v n">14500</span><span class="c">0.98</span></div><div class="lg-row show" data-f="rent_escalation_pct_annual" data-conf="0.97" data-flag="0" data-src="increasing 3% annually" data-loc="p.6 · [60, 222, 100, 14]" data-chk="Percentage normalized"><span class="k">"rent_escalation_pct_annual"</span><span class="v n">3.0</span><span class="c">0.97</span></div><div class="lg-row show" data-f="security_deposit" data-conf="0.98" data-flag="0" data-src="deposit $29,000.00 as security" data-loc="p.6 · [60, 244, 90, 14]" data-chk="Currency typed with unit"><span class="k">"security_deposit"</span><span class="v n">29000</span><span class="c">0.98</span></div><div class="lg-row show flag" data-f="renewal_option_notice_days" data-conf="0.62" data-flag="1" data-src="not less than six (6) months before expiration" data-loc="p.21 · [60, 350, 120, 14]" data-chk="Converted from months, low confidence: sent to human review"><span class="k">"renewal_option_notice_days"</span><span class="v n">180</span><span class="c">0.62 · REVIEW</span></div></div><div class="lg-detail" id="lg-detail"><div><span class="l">Source</span><b id="lg-d-src">as of April 18, 2024</b></div><div><span class="l">Page · box</span><b id="lg-d-loc">p.1 · [64, 148, 118, 14]</b></div><div class="chk"><span class="l">Check</span><span id="lg-d-chk">ISO 8601, printed text kept as source</span></div></div></div><svg class="lg-conn" aria-hidden="true"><path pathLength="1" d=""/><circle r="3.5"/><circle r="3.5"/></svg></div><div class="lg-stage-foot"><span id="lg-file">MSA-2024-0418-NB.pdf</span><div class="lg-prog"><i id="lg-prog-bar"></i></div><span><b id="lg-prog-n">9 / 9</b> fields · avg <b id="lg-prog-c"></b> · illustrative sample</span></div></div>
+    </div>
+  </section>
+
+  <!-- 2. STATS RIBBON + LOGOS -->
+  <div class="ap-ribbon"><div class="ap-wrap"><div class="ap-ribbon-grid">
+    <div class="ap-ribbon-cell"><p class="ap-ribbon-v">75M+</p><p class="ap-ribbon-l">Documents processed</p></div>
+    <div class="ap-ribbon-cell"><p class="ap-ribbon-v">SOC 2 + HIPAA</p><p class="ap-ribbon-l">Certified infrastructure</p></div>
+    <div class="ap-ribbon-cell"><p class="ap-ribbon-v">95%+</p><p class="ap-ribbon-l">Typical production accuracy</p></div>
+    <div class="ap-ribbon-cell"><p class="ap-ribbon-v">14 days</p><p class="ap-ribbon-l">Free trial · no credit card</p></div>
+  </div></div></div>
+  <div class="ap-logos"><div class="ap-logos-cap">Trusted by teams turning documents into production data</div><div class="ap-logos-track"><img src="assets/logos/vouch.svg" alt=""><img src="assets/logos/limit.png" alt=""><img src="assets/logos/ledgebrook.svg" alt=""><img src="assets/logos/obie.svg" alt=""><img src="assets/logos/neptune-flood.svg" alt=""><img src="assets/logos/insurance-quantified.svg" alt=""><img src="assets/logos/lettuce.svg" alt=""><img src="assets/logos/founder-shield.svg" alt=""><img src="assets/logos/compscience.svg" alt=""><img src="assets/logos/inclined.png" alt=""><img src="assets/logos/sterlingrisk.png" alt=""><img src="assets/logos/vouch.svg" alt=""><img src="assets/logos/limit.png" alt=""><img src="assets/logos/ledgebrook.svg" alt=""><img src="assets/logos/obie.svg" alt=""><img src="assets/logos/neptune-flood.svg" alt=""><img src="assets/logos/insurance-quantified.svg" alt=""><img src="assets/logos/lettuce.svg" alt=""><img src="assets/logos/founder-shield.svg" alt=""><img src="assets/logos/compscience.svg" alt=""><img src="assets/logos/inclined.png" alt=""><img src="assets/logos/sterlingrisk.png" alt=""></div></div>
+
+  <!-- 3. WHY CONTRACTS BREAK STANDARD EXTRACTION -->
+  <section class="ap-sec" id="lg-problem">
+    <div class="ap-wrap ap-head ap-center" data-reveal>
+      <span class="ap-kicker">Why contracts are hard</span>
+      <h2 class="ap-h2">Why contracts break standard extraction tools</h2>
+      <p class="ap-lede">Long-form legal text, nested clauses, and formatting that changes with every counterparty make contracts a language problem, not a layout one.</p>
+    </div>
+    <div class="ap-grid ap-g3"><div class="ap-cell" data-reveal><div class="ap-num">01</div><h3>Legal language parsing</h3><p>Contracts mix structured data (party names, dates, amounts) with dense legal prose. LLM reasoning interprets the legal language; SenseML rules extract the specific fields and values your contract management system needs.</p><svg class="ap-mini" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="19" y="15" width="96" height="100" rx="3" fill="#E6E6E9" stroke="none"/><rect class="" x="14" y="10" width="96" height="100" rx="3" fill="#fff" stroke="#1A1520"/><path d="M24 26h74M24 36h66M24 46h74M24 56h58M24 66h74M24 76h50M24 86h70" stroke-width="1.1" opacity=".5"/><rect class="m1" x="24" y="42" width="40" height="9" fill="rgba(132,0,85,.15)" stroke="#840055"/><rect class="m2" x="52" y="62" width="34" height="9" fill="rgba(132,0,85,.15)" stroke="#840055"/><path d="M64 46C84 46 92 36 124 36M86 66C104 66 112 62 124 62" stroke="#840055" stroke-dasharray="2 3"/><g><rect x="127" y="31" width="40.0" height="15" fill="#E6E6E9" stroke="none"/><rect x="124" y="28" width="40.0" height="15" fill="#840055"/><text x="130" y="39" font-size="8" font-family="IBM Plex Mono, monospace" fill="#fff" stroke="none" letter-spacing=".5">PARTY</text></g><g><rect x="127" y="57" width="34.4" height="15" fill="#E6E6E9" stroke="none"/><rect x="124" y="54" width="34.4" height="15" fill="#fff"/><text x="130" y="65" font-size="8" font-family="IBM Plex Mono, monospace" fill="#1A1520" stroke="none" letter-spacing=".5">DATE</text></g><g><rect x="127" y="83" width="45.599999999999994" height="15" fill="#E6E6E9" stroke="none"/><rect x="124" y="80" width="45.599999999999994" height="15" fill="#fff"/><text x="130" y="91" font-size="8" font-family="IBM Plex Mono, monospace" fill="#1A1520" stroke="none" letter-spacing=".5">AMOUNT</text></g></svg></div><div class="ap-cell" data-reveal><div class="ap-num">02</div><h3>Clause identification</h3><p>Termination, indemnification, confidentiality, force majeure: these clauses appear in varying sections with different numbering schemes. Each clause type is located by semantic meaning, not position, because every firm structures contracts differently.</p><svg class="ap-mini" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="15" y="17" width="54" height="96" rx="3" fill="#E6E6E9" stroke="none"/><rect class="" x="10" y="12" width="54" height="96" rx="3" fill="#fff" stroke="#1A1520"/><rect x="78" y="17" width="54" height="96" rx="3" fill="#E6E6E9" stroke="none"/><rect class="" x="73" y="12" width="54" height="96" rx="3" fill="#fff" stroke="#1A1520"/><rect x="141" y="17" width="54" height="96" rx="3" fill="#E6E6E9" stroke="none"/><rect class="" x="136" y="12" width="54" height="96" rx="3" fill="#fff" stroke="#1A1520"/><path d="M16 26h38M16 36h30M16 46h38M16 56h28M16 66h38M16 76h30M16 86h38" stroke-width="1" opacity=".38"/><rect class="m1" x="14" y="32" width="42" height="12" fill="rgba(132,0,85,.15)" stroke="#840055"/><text x="16" y="41" font-size="7.5" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" font-weight="600">3.</text><path d="M79 26h38M79 36h30M79 46h38M79 56h28M79 66h38M79 76h30M79 86h38" stroke-width="1" opacity=".38"/><rect class="m1" x="77" y="58" width="42" height="12" fill="rgba(132,0,85,.15)" stroke="#840055"/><text x="79" y="67" font-size="7.5" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" font-weight="600">IX</text><path d="M142 26h38M142 36h30M142 46h38M142 56h28M142 66h38M142 76h30M142 86h38" stroke-width="1" opacity=".38"/><rect class="m1" x="140" y="80" width="42" height="12" fill="rgba(132,0,85,.15)" stroke="#840055"/><text x="142" y="89" font-size="7.5" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" font-weight="600">14.2</text><path d="M30 118V108M100 118V108M163 118V108" stroke="#840055" stroke-dasharray="2 2"/></svg></div><div class="ap-cell" data-reveal><div class="ap-num">03</div><h3>Amendment and addendum linking</h3><p>Original agreement numbers, modified clauses, new terms: amendments reference their parent contract and change specific provisions. Each modification is extracted as a structured change record linked to the original.</p><svg class="ap-mini" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="19" y="13" width="74" height="54" rx="3" fill="#E6E6E9" stroke="none"/><rect class="" x="14" y="8" width="74" height="54" rx="3" fill="#fff" stroke="#1A1520"/><path d="M22 20h54" stroke-width="1.2" opacity=".55"/><path d="M22 28h40" stroke-width="1.2" opacity=".55"/><rect x="117" y="61" width="74" height="54" rx="3" fill="#E6E6E9" stroke="none"/><rect class="" x="112" y="56" width="74" height="54" rx="3" fill="#fff" stroke="#1A1520"/><path d="M120 68h54" stroke-width="1.2" opacity=".55"/><path d="M120 76h40" stroke-width="1.2" opacity=".55"/><text x="22" y="52" font-size="7" font-family="IBM Plex Mono, monospace" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">MSA-2024-0418</text><text x="120" y="100" font-size="7" font-family="IBM Plex Mono, monospace" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">AMENDMENT 1</text><path class="m1" d="M88 36C104 36 100 80 112 80" stroke="#840055" stroke-width="1.6" stroke-dasharray="3 3"/><rect class="m2" x="120" y="64" width="58" height="9" fill="rgba(132,0,85,.15)" stroke="#840055"/><g><rect x="131" y="17" width="45.599999999999994" height="15" fill="#E6E6E9" stroke="none"/><rect x="128" y="14" width="45.599999999999994" height="15" fill="#840055"/><text x="134" y="25" font-size="8" font-family="IBM Plex Mono, monospace" fill="#fff" stroke="none" letter-spacing=".5">CHG §2</text></g></svg></div></div>
+  </section>
+
+  <!-- 4. HYBRID: LLM READS, SENSEML ENFORCES -->
+  <section class="ap-sec ap-band" id="lg-hybrid">
+    <div class="ap-wrap">
+      <div class="ap-head ap-center" data-reveal>
+        <span class="ap-kicker">Under the hood</span>
+        <h2 class="ap-h2">The LLM reads the clause. <em>SenseML enforces your schema.</em></h2>
+        <p class="ap-lede">Hybrid extraction handles the range of legal writing styles while deterministic rules enforce your contract data schema.</p>
+      </div>
+      <div class="bs-cmp-wrap" data-reveal>
+        <div class="bs-cmp-list">
+          <div class="bs-cmp-item"><span class="bullet">1</span><div><b>LLM reasoning for legal language</b><p>Dense prose is interpreted by an LLM, so a clause is understood even when it is phrased in a way no template anticipated.</p></div></div>
+          <div class="bs-cmp-item"><span class="bullet">2</span><div><b>Deterministic rules for the schema</b><p>SenseML rules extract the specific fields and values your contract management system needs, and the output is schema-enforced.</p></div></div>
+          <div class="bs-cmp-item"><span class="bullet">3</span><div><b>Source coordinates on every value</b><p>Every value links back to its page and bounding box, so legal reviewers can audit it against the original document.</p></div></div>
+        </div>
+        <div style="text-align:center;"><svg class="bs-cmp-svg" viewBox="0 0 440 250" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="10" y="10" width="200" height="230" rx="6" fill="#FBFBF9" stroke="#E6E6E9"/><text x="24" y="34" font-size="11" font-family="IBM Plex Serif, serif" fill="#1A1520" stroke="none" text-anchor="start" font-weight="600" letter-spacing="0">LLM-only extraction</text><text x="24" y="48" font-size="8" font-family="IBM Plex Sans, sans-serif" fill="#8B857B" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">Free-text answer to a prompt</text><rect x="24" y="60" width="172" height="92" rx="3" fill="#fff" stroke="#E6E6E9"/><text x="32" y="78" font-size="8.2" font-family="IBM Plex Serif, serif" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">The agreement appears to start</text><text x="32" y="91" font-size="8.2" font-family="IBM Plex Serif, serif" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">around April 2024 and seems to</text><text x="32" y="104" font-size="8.2" font-family="IBM Plex Serif, serif" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">renew yearly. Either side can</text><text x="32" y="117" font-size="8.2" font-family="IBM Plex Serif, serif" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">probably leave with two months</text><text x="32" y="130" font-size="8.2" font-family="IBM Plex Serif, serif" fill="#1A1520" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">of notice...</text><rect x="28" y="106" width="164" height="14" fill="rgba(216,139,31,0.13)" stroke="#D88B1F" stroke-dasharray="2 2" rx="2"/><text x="24" y="172" font-size="8.5" font-family="IBM Plex Sans, sans-serif" fill="#993333" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">✕ Output shape follows the prompt</text><text x="24" y="190" font-size="8.5" font-family="IBM Plex Sans, sans-serif" fill="#993333" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">✕ Dates and notice periods left as prose</text><text x="24" y="208" font-size="8.5" font-family="IBM Plex Sans, sans-serif" fill="#993333" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">✕ No page or bounding box to audit</text><rect x="230" y="10" width="200" height="230" rx="6" fill="#fff" stroke="#840055" stroke-width="1.5"/><text x="244" y="34" font-size="11" font-family="IBM Plex Serif, serif" fill="#840055" stroke="none" text-anchor="start" font-weight="600" letter-spacing="0">Sensible (LLM + SenseML)</text><text x="244" y="48" font-size="8" font-family="IBM Plex Sans, sans-serif" fill="#8B857B" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">Schema-enforced, typed fields</text><rect x="244" y="60" width="172" height="92" rx="3" fill="#F7F3F6" stroke="rgba(132,0,85,0.2)"/><text x="252" y="78" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">effective_date</text><text x="404" y="78" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#2E7B40" stroke="none" text-anchor="end" font-weight="400" letter-spacing="0">2024-04-18</text><text x="252" y="94" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">initial_term_months</text><text x="404" y="94" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#2E7B40" stroke="none" text-anchor="end" font-weight="400" letter-spacing="0">24</text><text x="252" y="110" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">termination_notice_days</text><text x="404" y="110" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#2E7B40" stroke="none" text-anchor="end" font-weight="400" letter-spacing="0">60</text><text x="252" y="126" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">governing_law</text><text x="404" y="126" font-size="7.6" font-family="IBM Plex Mono, monospace" fill="#2E7B40" stroke="none" text-anchor="end" font-weight="400" letter-spacing="0">"Massachusetts"</text><path d="M252 140h156" stroke="rgba(132,0,85,0.2)"/><text x="252" y="148" font-size="6.8" font-family="IBM Plex Mono, monospace" fill="#8B857B" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">page 1 · bbox [64, 212, 410, 28]</text><text x="244" y="172" font-size="8.5" font-family="IBM Plex Sans, sans-serif" fill="#2E7B40" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">✓ LLM reads the legal language</text><text x="244" y="190" font-size="8.5" font-family="IBM Plex Sans, sans-serif" fill="#2E7B40" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">✓ SenseML enforces your contract schema</text><text x="244" y="208" font-size="8.5" font-family="IBM Plex Sans, sans-serif" fill="#2E7B40" stroke="none" text-anchor="start" font-weight="400" letter-spacing="0">✓ Page + bounding box on every value</text></svg></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. CLAUSE LOCATOR (interactive) -->
+  <section class="ap-sec" id="lg-clauses">
+    <div class="ap-wrap">
+      <div class="ap-head ap-center" data-reveal>
+        <span class="ap-kicker">Clause identification</span>
+        <h2 class="ap-h2">Same clause, three numbering schemes. <em>One structured record.</em></h2>
+        <p class="ap-lede">Pick a clause type and watch it get located in three differently structured agreements. Each match is by meaning, not by section number.</p>
+      </div>
+      <div class="lg-clause-wrap">
+        <div class="lg-chips" data-reveal><button class="lg-chip active" data-c="termination">Termination</button><button class="lg-chip" data-c="confidentiality">Confidentiality</button><button class="lg-chip" data-c="indemnification">Indemnification</button><button class="lg-chip" data-c="liability">Limitation of liability</button><button class="lg-chip" data-c="force_majeure">Force majeure</button></div>
+        <div class="lg-papers" data-clauses="{&quot;termination&quot;: {&quot;label&quot;: &quot;Termination&quot;, &quot;hits&quot;: [{&quot;sec&quot;: 2, &quot;conf&quot;: &quot;0.98&quot;, &quot;quote&quot;: &quot;Either Party may terminate upon &lt;b&gt;sixty (60) days’ written notice&lt;/b&gt;. For material breach, &lt;b&gt;30 days&lt;/b&gt; to cure.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;termination&quot;, &quot;section_ref&quot;: &quot;3&quot;, &quot;notice_days&quot;: 60, &quot;cure_period_days&quot;: 30}}, {&quot;sec&quot;: 6, &quot;conf&quot;: &quot;0.96&quot;, &quot;quote&quot;: &quot;Either party may end this Agreement on &lt;b&gt;ninety (90) days’ prior written notice&lt;/b&gt;, or immediately for uncured breach.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;termination&quot;, &quot;section_ref&quot;: &quot;Art. VII&quot;, &quot;notice_days&quot;: 90, &quot;cure_period_days&quot;: null}}, {&quot;sec&quot;: 3, &quot;conf&quot;: &quot;0.97&quot;, &quot;quote&quot;: &quot;Customer may cancel on &lt;b&gt;30 days’ notice&lt;/b&gt;. Supplier’s cure period for breach is &lt;b&gt;15 days&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;termination&quot;, &quot;section_ref&quot;: &quot;12&quot;, &quot;notice_days&quot;: 30, &quot;cure_period_days&quot;: 15}}], &quot;note&quot;: &quot;Termination sits at 3 · Art. VII · 12. Same clause, three numbering schemes, found by meaning rather than position.&quot;}, &quot;confidentiality&quot;: {&quot;label&quot;: &quot;Confidentiality&quot;, &quot;hits&quot;: [{&quot;sec&quot;: 3, &quot;conf&quot;: &quot;0.97&quot;, &quot;quote&quot;: &quot;Confidentiality obligations survive &lt;b&gt;three (3) years&lt;/b&gt; after termination.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;confidentiality&quot;, &quot;section_ref&quot;: &quot;4&quot;, &quot;survival_years&quot;: 3, &quot;perpetual_trade_secrets&quot;: false}}, {&quot;sec&quot;: 3, &quot;conf&quot;: &quot;0.95&quot;, &quot;quote&quot;: &quot;The Receiving Party shall protect Confidential Information for &lt;b&gt;five (5) years&lt;/b&gt; from disclosure.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;confidentiality&quot;, &quot;section_ref&quot;: &quot;Art. IV&quot;, &quot;survival_years&quot;: 5, &quot;perpetual_trade_secrets&quot;: false}}, {&quot;sec&quot;: 2, &quot;conf&quot;: &quot;0.96&quot;, &quot;quote&quot;: &quot;Trade secrets remain protected &lt;b&gt;indefinitely&lt;/b&gt;; other information is protected for two years.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;confidentiality&quot;, &quot;section_ref&quot;: &quot;11&quot;, &quot;survival_years&quot;: 2, &quot;perpetual_trade_secrets&quot;: true}}], &quot;note&quot;: &quot;Confidentiality sits at 4 · Art. IV · 11. Same clause, three numbering schemes, found by meaning rather than position.&quot;}, &quot;indemnification&quot;: {&quot;label&quot;: &quot;Indemnification&quot;, &quot;hits&quot;: [{&quot;sec&quot;: 4, &quot;conf&quot;: &quot;0.97&quot;, &quot;quote&quot;: &quot;Provider shall indemnify Client against &lt;b&gt;third-party IP infringement claims&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;indemnification&quot;, &quot;section_ref&quot;: &quot;5&quot;, &quot;indemnitor&quot;: &quot;Provider&quot;, &quot;scope&quot;: &quot;third-party IP claims&quot;}}, {&quot;sec&quot;: 4, &quot;conf&quot;: &quot;0.94&quot;, &quot;quote&quot;: &quot;Each party shall indemnify the other against &lt;b&gt;third-party claims&lt;/b&gt; arising from its breach.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;indemnification&quot;, &quot;section_ref&quot;: &quot;Art. V&quot;, &quot;indemnitor&quot;: &quot;both parties&quot;, &quot;scope&quot;: &quot;third-party claims from breach&quot;}}, {&quot;sec&quot;: 4, &quot;conf&quot;: &quot;0.96&quot;, &quot;quote&quot;: &quot;Supplier indemnifies Customer against claims of &lt;b&gt;bodily injury and IP infringement&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;indemnification&quot;, &quot;section_ref&quot;: &quot;13&quot;, &quot;indemnitor&quot;: &quot;Supplier&quot;, &quot;scope&quot;: &quot;bodily injury; IP infringement&quot;}}], &quot;note&quot;: &quot;Indemnification sits at 5 · Art. V · 13. Same clause, three numbering schemes, found by meaning rather than position.&quot;}, &quot;liability&quot;: {&quot;label&quot;: &quot;Limitation of liability&quot;, &quot;hits&quot;: [{&quot;sec&quot;: 5, &quot;conf&quot;: &quot;0.97&quot;, &quot;quote&quot;: &quot;Aggregate liability is capped at the &lt;b&gt;fees paid in the prior 12 months&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;limitation_of_liability&quot;, &quot;section_ref&quot;: &quot;6&quot;, &quot;cap_value&quot;: 12, &quot;cap_unit&quot;: &quot;months of fees&quot;}}, {&quot;sec&quot;: 5, &quot;conf&quot;: &quot;0.95&quot;, &quot;quote&quot;: &quot;Liability shall not exceed the &lt;b&gt;fees paid in the 6 months&lt;/b&gt; preceding the claim.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;limitation_of_liability&quot;, &quot;section_ref&quot;: &quot;Art. VI&quot;, &quot;cap_value&quot;: 6, &quot;cap_unit&quot;: &quot;months of fees&quot;}}, {&quot;sec&quot;: 5, &quot;conf&quot;: &quot;0.96&quot;, &quot;quote&quot;: &quot;Total liability is limited to &lt;b&gt;USD 500,000&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;limitation_of_liability&quot;, &quot;section_ref&quot;: &quot;14&quot;, &quot;cap_value&quot;: 500000, &quot;cap_unit&quot;: &quot;USD&quot;}}], &quot;note&quot;: &quot;Limitation of liability sits at 6 · Art. VI · 14. Same clause, three numbering schemes, found by meaning rather than position.&quot;}, &quot;force_majeure&quot;: {&quot;label&quot;: &quot;Force majeure&quot;, &quot;hits&quot;: [{&quot;sec&quot;: 6, &quot;conf&quot;: &quot;0.96&quot;, &quot;quote&quot;: &quot;Performance is suspended during a force majeure event; either party may terminate after &lt;b&gt;30 days&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;force_majeure&quot;, &quot;section_ref&quot;: &quot;7&quot;, &quot;performance_suspended&quot;: true, &quot;termination_right_after_days&quot;: 30}}, {&quot;sec&quot;: 7, &quot;conf&quot;: &quot;0.94&quot;, &quot;quote&quot;: &quot;Neither party is liable for delay beyond its reasonable control; termination right after &lt;b&gt;60 days&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;force_majeure&quot;, &quot;section_ref&quot;: &quot;Art. VIII&quot;, &quot;performance_suspended&quot;: true, &quot;termination_right_after_days&quot;: 60}}, {&quot;sec&quot;: 6, &quot;conf&quot;: &quot;0.95&quot;, &quot;quote&quot;: &quot;Unforeseen events excuse performance; either party may terminate after &lt;b&gt;45 days&lt;/b&gt;.&quot;, &quot;out&quot;: {&quot;clause&quot;: &quot;force_majeure&quot;, &quot;section_ref&quot;: &quot;15&quot;, &quot;performance_suspended&quot;: true, &quot;termination_right_after_days&quot;: 45}}], &quot;note&quot;: &quot;Force majeure sits at 7 · Art. VIII · 15. Same clause, three numbering schemes, found by meaning rather than position.&quot;}}"><div class="lg-paper" data-reveal><div class="lg-paper-firm"><span>Firm A</span><span>8 sections</span></div><h3>Master Services Agreement</h3><div class="lg-secs"><div class="lg-sec" data-i="0"><span class="n">1</span><span>Scope of Services</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="1"><span class="n">2</span><span>Compensation &amp; Payment</span><span class="m">MATCHED</span></div><div class="lg-sec hit" data-i="2"><span class="n">3</span><span>Term &amp; Termination</span><span class="m">MATCHED 0.98</span></div><div class="lg-sec" data-i="3"><span class="n">4</span><span>Confidentiality</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="4"><span class="n">5</span><span>Indemnification</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="5"><span class="n">6</span><span>Limitation of Liability</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="6"><span class="n">7</span><span>Force Majeure</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="7"><span class="n">8</span><span>General Provisions</span><span class="m">MATCHED</span></div></div><div class="lg-sec-quote">Either Party may terminate upon <b>sixty (60) days’ written notice</b>. For material breach, <b>30 days</b> to cure.</div><div class="lg-out">{
+  <span class="k">"clause"</span>: <span class="s">"termination"</span>,
+  <span class="k">"section_ref"</span>: <span class="s">"3"</span>,
+  <span class="k">"notice_days"</span>: <span class="n">60</span>,
+  <span class="k">"cure_period_days"</span>: <span class="n">30</span>
+}</div></div><div class="lg-paper" data-reveal><div class="lg-paper-firm"><span>Firm B</span><span>8 sections</span></div><h3>Professional Services Agreement</h3><div class="lg-secs"><div class="lg-sec" data-i="0"><span class="n">Art. I</span><span>Definitions</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="1"><span class="n">Art. II</span><span>Services &amp; Deliverables</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="2"><span class="n">Art. III</span><span>Fees</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="3"><span class="n">Art. IV</span><span>Confidential Information</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="4"><span class="n">Art. V</span><span>Warranties &amp; Indemnity</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="5"><span class="n">Art. VI</span><span>Liability Limits</span><span class="m">MATCHED</span></div><div class="lg-sec hit" data-i="6"><span class="n">Art. VII</span><span>Early Termination</span><span class="m">MATCHED 0.96</span></div><div class="lg-sec" data-i="7"><span class="n">Art. VIII</span><span>Events Beyond Control</span><span class="m">MATCHED</span></div></div><div class="lg-sec-quote">Either party may end this Agreement on <b>ninety (90) days’ prior written notice</b>, or immediately for uncured breach.</div><div class="lg-out">{
+  <span class="k">"clause"</span>: <span class="s">"termination"</span>,
+  <span class="k">"section_ref"</span>: <span class="s">"Art. VII"</span>,
+  <span class="k">"notice_days"</span>: <span class="n">90</span>,
+  <span class="k">"cure_period_days"</span>: <span class="n">null</span>
+}</div></div><div class="lg-paper" data-reveal><div class="lg-paper-firm"><span>Firm C</span><span>8 sections</span></div><h3>Vendor Services Agreement</h3><div class="lg-secs"><div class="lg-sec" data-i="0"><span class="n">9.</span><span>Deliverables</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="1"><span class="n">10.</span><span>Payment</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="2"><span class="n">11.</span><span>Protection of Information</span><span class="m">MATCHED</span></div><div class="lg-sec hit" data-i="3"><span class="n">12.</span><span>Cancellation and Exit</span><span class="m">MATCHED 0.97</span></div><div class="lg-sec" data-i="4"><span class="n">13.</span><span>Third-Party Claims</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="5"><span class="n">14.</span><span>Cap on Liability</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="6"><span class="n">15.</span><span>Unforeseen Events</span><span class="m">MATCHED</span></div><div class="lg-sec" data-i="7"><span class="n">16.</span><span>Notices</span><span class="m">MATCHED</span></div></div><div class="lg-sec-quote">Customer may cancel on <b>30 days’ notice</b>. Supplier’s cure period for breach is <b>15 days</b>.</div><div class="lg-out">{
+  <span class="k">"clause"</span>: <span class="s">"termination"</span>,
+  <span class="k">"section_ref"</span>: <span class="s">"12"</span>,
+  <span class="k">"notice_days"</span>: <span class="n">30</span>,
+  <span class="k">"cure_period_days"</span>: <span class="n">15</span>
+}</div></div></div>
+        <p class="lg-clause-note" id="lg-clause-note">Termination sits at 3 · Art. VII · 12. Same clause, three numbering schemes, found by meaning rather than position. Illustrative agreements.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. AMENDMENT LINKING (interactive) -->
+  <section class="ap-sec ap-band" id="lg-amend">
+    <div class="ap-wrap">
+      <div class="lg-amend">
+        <div>
+          <div data-reveal>
+            <span class="ap-kicker">Amendment and addendum linking</span>
+            <h2 class="ap-h2">Amendments come back as <em>change records</em></h2>
+            <p class="ap-lede" style="margin-top:20px;margin-bottom:34px;">An amendment names its parent and changes specific provisions. Sensible extracts the original agreement reference, the amendment date, the modified clauses, and the new terms, so your system can follow the chain.</p>
+          </div>
+          <div class="lg-chain"><span class="lg-chain-fill"></span><button type="button" class="lg-node active seen" data-rec="{&quot;document_role&quot;: &quot;original_agreement&quot;, &quot;agreement_reference&quot;: &quot;MSA-2024-0418-NB&quot;, &quot;effective_date&quot;: {&quot;source&quot;: &quot;04/18/2024&quot;, &quot;value&quot;: &quot;2024-04-18&quot;, &quot;type&quot;: &quot;date&quot;}, &quot;parties&quot;: [&quot;Stillwater Robotics, Inc.&quot;, &quot;Northbridge Studio LLC&quot;], &quot;initial_term_months&quot;: 24}" data-title="Original · Apr 18, 2024" data-reveal><div class="t"><span>Original</span><b>Apr 18, 2024</b></div><h4>Master Services Agreement</h4><p>MSA-2024-0418-NB · Stillwater Robotics, Inc. and Northbridge Studio LLC</p></button><button type="button" class="lg-node" data-rec="{&quot;document_role&quot;: &quot;amendment&quot;, &quot;original_agreement_reference&quot;: &quot;MSA-2024-0418-NB&quot;, &quot;amendment_date&quot;: {&quot;source&quot;: &quot;September 3, 2024&quot;, &quot;value&quot;: &quot;2024-09-03&quot;, &quot;type&quot;: &quot;date&quot;}, &quot;modified_clauses&quot;: [{&quot;section&quot;: &quot;2&quot;, &quot;title&quot;: &quot;Compensation &amp; Payment&quot;, &quot;from&quot;: &quot;Net 30&quot;, &quot;to&quot;: &quot;Net 45&quot;}], &quot;new_terms&quot;: []}" data-title="Amendment 1 · Sep 3, 2024" data-reveal><div class="t"><span>Amendment 1</span><b>Sep 3, 2024</b></div><h4>Payment terms change</h4><p>Modifies §2 Compensation &amp; Payment</p></button><button type="button" class="lg-node" data-rec="{&quot;document_role&quot;: &quot;amendment&quot;, &quot;original_agreement_reference&quot;: &quot;MSA-2024-0418-NB&quot;, &quot;amendment_date&quot;: {&quot;source&quot;: &quot;January 15, 2025&quot;, &quot;value&quot;: &quot;2025-01-15&quot;, &quot;type&quot;: &quot;date&quot;}, &quot;modified_clauses&quot;: [{&quot;section&quot;: &quot;3&quot;, &quot;title&quot;: &quot;Term &amp; Termination&quot;, &quot;from&quot;: &quot;24 months&quot;, &quot;to&quot;: &quot;36 months&quot;}], &quot;new_terms&quot;: [{&quot;title&quot;: &quot;Exhibit C: Data Processing Addendum&quot;, &quot;type&quot;: &quot;exhibit&quot;}]}" data-title="Amendment 2 · Jan 15, 2025" data-reveal><div class="t"><span>Amendment 2</span><b>Jan 15, 2025</b></div><h4>Term extension and data addendum</h4><p>Modifies §3 and adds Exhibit C</p></button></div>
+        </div>
+        <div class="lg-rec" data-reveal>
+          <div class="lg-rec-bar"><span id="lg-rec-title">Original · Apr 18, 2024</span><b>extract.json</b></div>
+          <div class="lg-rec-body">{
+  <span class="k">"document_role"</span>: <span class="s">"original_agreement"</span>,
+  <span class="k">"agreement_reference"</span>: <span class="s">"MSA-2024-0418-NB"</span>,
+  <span class="k">"effective_date"</span>: {
+    <span class="k">"source"</span>: <span class="s">"04/18/2024"</span>,
+    <span class="k">"value"</span>: <span class="s">"2024-04-18"</span>,
+    <span class="k">"type"</span>: <span class="s">"date"</span>
+  },
+  <span class="k">"parties"</span>: [
+    <span class="s">"Stillwater Robotics, Inc."</span>,
+    <span class="s">"Northbridge Studio LLC"</span>
+  ],
+  <span class="k">"initial_term_months"</span>: <span class="n">24</span>
+}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. FIELDS EXPLORER -->
+  <section class="ap-sec" id="lg-fields">
+    <div class="ap-wrap"><div class="ap-fields">
+      <div class="ap-fields-nav" data-reveal>
+        <span class="ap-kicker">Data dictionary</span>
+        <h2 class="ap-h2">Fields we extract</h2>
+        <p class="ap-lede">Every contract is different, so the config is built around your exact schema rather than a fixed list. These are the fields legal and ops teams request most.</p>
+        <div class="ap-ftabs" role="tablist" aria-label="Field groups"><button class="ap-ftab" role="tab" aria-selected="true" data-ft="parties"><span class="n">01</span><span class="t">Parties & dates</span><span class="c">8</span></button><button class="ap-ftab" role="tab" aria-selected="false" data-ft="financial"><span class="n">02</span><span class="t">Financial terms</span><span class="c">8</span></button><button class="ap-ftab" role="tab" aria-selected="false" data-ft="clauses"><span class="n">03</span><span class="t">Key clauses</span><span class="c">8</span></button><button class="ap-ftab" role="tab" aria-selected="false" data-ft="sign"><span class="n">04</span><span class="t">Signatories & amendments</span><span class="c">7</span></button></div>
+        <div class="lg-schem-wrap"><svg class="lg-schem" data-active="parties" viewBox="0 0 220 280" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="10" y="10" width="200" height="266" rx="3" fill="#E6E6E9" stroke="none"/><rect x="4" y="4" width="200" height="266" rx="3" fill="#fff"/><path d="M62 20h80" stroke-width="2"/><path d="M82 28h40" opacity=".5"/><g class="rg-parties"><rect class="bg" x="12" y="38" width="184" height="52" rx="2"/><path d="M20 50h92M20 60h70M20 70h82M20 80h60" opacity=".5"/><path d="M130 50h58M130 60h58M130 70h58" opacity=".5"/><text class="lb" x="118" y="35" font-size="7" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none">PARTIES &amp; DATES</text></g><g class="rg-financial"><rect class="bg" x="12" y="98" width="184" height="42" rx="2"/><path d="M20 110h100M20 120h86M20 130h92" opacity=".5"/><path d="M146 110h42M146 120h42M146 130h42" stroke-width="2"/><text class="lb" x="118" y="95" font-size="7" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none">FINANCIAL TERMS</text></g><g class="rg-clauses"><rect class="bg" x="12" y="148" width="184" height="72" rx="2"/><path d="M20 160h160M20 170h140M20 180h156M20 190h120M20 200h150M20 210h96" opacity=".5"/><text class="lb" x="118" y="145" font-size="7" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none">KEY CLAUSES</text></g><g class="rg-sign"><rect class="bg" x="12" y="228" width="184" height="36" rx="2"/><path d="M22 250h60M120 250h60" opacity=".7"/><path d="M26 244c6-8 8-6 10 0s6 2 10-4M124 244c6-8 8-6 10 0s6 2 10-4" stroke-width="1.1"/><text class="lb" x="118" y="225" font-size="7" font-family="IBM Plex Mono, monospace" fill="#840055" stroke="none">SIGNATORIES</text></g></svg></div>
+      </div>
+      <div data-reveal>
+        <div class="ap-fpane on" id="ap-f-parties" role="tabpanel"><div class="ap-frow h"><div>Field</div><div>Schema key</div><div>How Sensible handles it</div><div>Returned as</div></div><div class="ap-frow"><div class="ap-fname">Party names</div><div class="ap-fkey"><code>party_a / party_b</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Both counterparties, aliased to the roles your CLM expects.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Party roles</div><div class="ap-fkey"><code>party_role</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Buyer, seller, licensor, licensee, landlord, tenant. Defined in configuration.</div><div class="ap-fchk"><span class=ap-chk>Mapped</span></div></div><div class="ap-frow"><div class="ap-fname">Party addresses</div><div class="ap-fkey"><code>party_address</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Principal offices as written in the preamble.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Effective date</div><div class="ap-fkey"><code>effective_date</code><span class="ap-type t-date">date</span></div><div class="ap-fnote">Printed text kept as <code>source</code>; normalized value returned alongside.</div><div class="ap-fchk"><span class=ap-chk>ISO 8601</span></div></div><div class="ap-frow"><div class="ap-fname">Execution date</div><div class="ap-fkey"><code>execution_date</code><span class="ap-type t-date">date</span></div><div class="ap-fnote">The date the agreement was signed, when it differs from the effective date.</div><div class="ap-fchk"><span class=ap-chk>ISO 8601</span></div></div><div class="ap-frow"><div class="ap-fname">Expiration date</div><div class="ap-fkey"><code>expiration_date</code><span class="ap-type t-date">date</span></div><div class="ap-fnote">Stated end date, or the date implied by the initial term.</div><div class="ap-fchk"><span class=ap-chk>ISO 8601</span></div></div><div class="ap-frow"><div class="ap-fname">Governing law</div><div class="ap-fkey"><code>governing_law</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Jurisdiction whose law governs the agreement.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Jurisdiction / venue</div><div class="ap-fkey"><code>jurisdiction</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Courts or forum named for disputes.</div><div class="ap-fchk"></div></div></div><div class="ap-fpane" id="ap-f-financial" role="tabpanel"><div class="ap-frow h"><div>Field</div><div>Schema key</div><div>How Sensible handles it</div><div>Returned as</div></div><div class="ap-frow"><div class="ap-fname">Contract value</div><div class="ap-fkey"><code>contract_value</code><span class="ap-type t-currency">currency</span></div><div class="ap-fnote">Total consideration or annual fee, with printed text kept as <code>source</code>.</div><div class="ap-fchk"><span class=ap-chk>Typed</span></div></div><div class="ap-frow"><div class="ap-fname">Payment schedule</div><div class="ap-fkey"><code>payment_schedule</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Net days, milestones, installments, and invoicing cadence.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Rate / pricing</div><div class="ap-fkey"><code>pricing</code><span class="ap-type t-currency">currency</span></div><div class="ap-fnote">Hourly rates, unit prices, and rate cards.</div><div class="ap-fchk"><span class=ap-chk>Typed</span></div></div><div class="ap-frow"><div class="ap-fname">Penalties</div><div class="ap-fkey"><code>penalties</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Late fees, liquidated damages, and service credits.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Caps</div><div class="ap-fkey"><code>liability_cap</code><span class="ap-type t-currency">currency</span></div><div class="ap-fnote">Monetary caps or multiples of fees.</div><div class="ap-fchk"><span class=ap-chk>Typed</span></div></div><div class="ap-frow"><div class="ap-fname">Escalation clauses</div><div class="ap-fkey"><code>escalation</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Annual increases and indexation mechanics.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Currency</div><div class="ap-fkey"><code>currency</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Currency the contract is denominated in.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Tax treatment</div><div class="ap-fkey"><code>tax_treatment</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Tax responsibilities and gross-up provisions.</div><div class="ap-fchk"></div></div></div><div class="ap-fpane" id="ap-f-clauses" role="tabpanel"><div class="ap-frow h"><div>Field</div><div>Schema key</div><div>How Sensible handles it</div><div>Returned as</div></div><div class="ap-frow"><div class="ap-fname">Termination provisions</div><div class="ap-fkey"><code>termination</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Notice period, cure period, and termination rights, wherever they appear.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">Renewal terms</div><div class="ap-fkey"><code>renewal</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Auto-renewal, renewal length, and the notice window to stop it.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">Indemnification</div><div class="ap-fkey"><code>indemnification</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Who indemnifies whom, and for what.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">Limitation of liability</div><div class="ap-fkey"><code>limitation_of_liability</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Caps and exclusions on liability.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">Confidentiality</div><div class="ap-fkey"><code>confidentiality</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Scope and survival of confidentiality obligations.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">IP ownership</div><div class="ap-fkey"><code>ip_ownership</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Who owns work product and pre-existing IP.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">Non-compete</div><div class="ap-fkey"><code>non_compete</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Restrictive covenants and their duration.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div><div class="ap-frow"><div class="ap-fname">Force majeure</div><div class="ap-fkey"><code>force_majeure</code><span class="ap-type t-clause">clause</span></div><div class="ap-fnote">Excused events and the resulting termination rights.</div><div class="ap-fchk"><span class=ap-chk>By meaning</span></div></div></div><div class="ap-fpane" id="ap-f-sign" role="tabpanel"><div class="ap-frow h"><div>Field</div><div>Schema key</div><div>How Sensible handles it</div><div>Returned as</div></div><div class="ap-frow"><div class="ap-fname">Signatory name</div><div class="ap-fkey"><code>signatories[].name</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Each person who signed, in signature-block order.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Signatory title</div><div class="ap-fkey"><code>signatories[].title</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">Capacity in which they signed.</div><div class="ap-fchk"></div></div><div class="ap-frow"><div class="ap-fname">Signature date</div><div class="ap-fkey"><code>signatories[].signature_date</code><span class="ap-type t-date">date</span></div><div class="ap-fnote">Per-signatory date, since counterparties often sign on different days.</div><div class="ap-fchk"><span class=ap-chk>ISO 8601</span></div></div><div class="ap-frow"><div class="ap-fname">Original agreement reference</div><div class="ap-fkey"><code>original_agreement_reference</code><span class="ap-type t-string">string</span></div><div class="ap-fnote">The parent contract an amendment modifies.</div><div class="ap-fchk"><span class=ap-chk>Linked</span></div></div><div class="ap-frow"><div class="ap-fname">Amendment date</div><div class="ap-fkey"><code>amendment_date</code><span class="ap-type t-date">date</span></div><div class="ap-fnote">When the amendment takes effect.</div><div class="ap-fchk"><span class=ap-chk>ISO 8601</span></div></div><div class="ap-frow"><div class="ap-fname">Modified clauses</div><div class="ap-fkey"><code>modified_clauses</code><span class="ap-type t-array">array</span></div><div class="ap-fnote">Each changed provision as a structured change record.</div><div class="ap-fchk"><span class=ap-chk>Linked</span></div></div><div class="ap-frow"><div class="ap-fname">New terms</div><div class="ap-fkey"><code>new_terms</code><span class="ap-type t-array">array</span></div><div class="ap-fnote">Provisions and exhibits the amendment adds.</div><div class="ap-fchk"><span class=ap-chk>Linked</span></div></div></div>
+        <div class="ap-more"><b>Mapped to your schema.</b><span>Whatever else your contract-management system needs gets added in configuration, not in a fixed template.</span></div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 8. VALIDATION + REVIEW -->
+  <section class="ap-sec ap-band" id="lg-validation">
+    <div class="ap-wrap">
+      <div class="ap-val">
+        <div data-reveal>
+          <span class="ap-kicker">Validation and review</span>
+          <h2 class="ap-h2">How every contract is checked before it reaches your CLM</h2>
+          <p class="ap-lede">Extractions are returned against your schema, and Sensible flags low-confidence results for human review. You configure the review thresholds and workflows, so a reviewer only opens the contracts that need one.</p>
+        </div>
+        <div class="ap-checks"><div class="ap-checks-h"><span>Example checks</span><span>MSA-2024-0418-NB</span></div><div class="ap-check"><span class="ic">&#10003;</span><div><b>Dates normalized, source text kept</b><span class="d">Printed &ldquo;04/18/2024&rdquo; returns as 2024-04-18 with the original string preserved alongside</span></div><span class="res">2024-04-18</span></div><div class="ap-check"><span class="ic">&#10003;</span><div><b>Preamble parties match the signature blocks</b><span class="d">Both counterparties and both signatories resolve to the same two legal entities</span></div><span class="res" data-count="2" data-suffix=" / 2 parties">2 / 2 parties</span></div><div class="ap-check"><span class="ic">&#10003;</span><div><b>Every schema field located</b><span class="d">Termination, payment, renewal, and governing law found in whichever section this counterparty put them</span></div><span class="res" data-count="12" data-suffix=" / 12 fields">12 / 12 fields</span></div><div class="ap-check"><span class="ic">&#10003;</span><div><b>Types enforced by your schema</b><span class="d">Notice periods and fees return as numbers and dates as ISO 8601, never as prose</span></div><span class="res">schema valid</span></div><div class="ap-check flag"><span class="ic">!</span><div><b>A check that flags</b><span class="d">Governing law is missing from Exhibit B, so the field returns with a low confidence score (0.41) and is routed to human review under your threshold</span></div><span class="res">review flagged</span></div></div>
+      </div>
+      <div class="ap-quote">
+        <div><span class="ap-kicker">Our view</span></div>
+        <blockquote><p class="ap-qtext">Contracts are a language problem, not a layout one.</p><cite>Sensible</cite></blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. CONTRACT TYPES -->
+  <section class="ap-sec" id="lg-types">
+    <div class="ap-wrap">
+      <div class="ap-head ap-center" data-reveal>
+        <span class="ap-kicker">Supported contract types</span>
+        <h2 class="ap-h2">From SaaS agreements to FAR/DFARS contracts</h2>
+        <p class="ap-lede">Sensible processes SaaS, employment, NDA, lease, vendor, and specialty contracts.</p>
+      </div>
+      <div class="lg-types" data-reveal><div class="lg-type-col"><span class="ap-kicker">Commercial</span><h3>Commercial agreements</h3><p>The workhorse paper of procurement, sales, and partnerships.</p><div class="lg-type-list"><span>MSAs</span><span>SOWs</span><span>SaaS / license agreements</span><span>NDAs</span><span>Supply agreements</span><span>Distribution agreements</span><span>Vendor contracts</span></div></div><div class="lg-type-col"><span class="ap-kicker">Specialized</span><h3>Specialized agreements</h3><p>Longer, more regulated, and less standardized.</p><div class="lg-type-list"><span>Real estate leases</span><span>Employment agreements</span><span>Franchise agreements</span><span>Joint venture agreements</span><span>Government contracts (FAR/DFARS)</span></div></div></div>
+      <p class="lg-type-foot" data-reveal>Hybrid extraction handles the range of legal writing styles, while deterministic rules enforce your contract data schema.</p>
+    </div>
+  </section>
+
+  <!-- 10. USE CASES -->
+  <section class="ap-sec ap-band" id="lg-usecases">
+    <div class="ap-wrap">
+      <div class="ap-head ap-center" data-reveal>
+        <span class="ap-kicker">Use cases</span>
+        <h2 class="ap-h2">Structured contract data for the work legal teams repeat</h2>
+        <p class="ap-lede">CLM integration, obligation tracking, renewal management, and compliance, all from the same validated JSON.</p>
+      </div>
+      <div class="bs-usecase-grid" data-reveal><div class="bs-usecase-card"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="6" y="8" width="22" height="28" rx="2"/><rect x="18" y="14" width="22" height="28" rx="2" fill="#fff"/><path d="M23 24h12M23 30h12M23 36h7"/></svg><h3>CLM Integration</h3><p>Push schema-validated contract abstracts into your contract lifecycle system instead of re-keying parties, dates, and terms from PDFs.</p><span class="bs-usecase-tag">Legal Ops</span></div><div class="bs-usecase-card"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="6" width="32" height="36" rx="2"/><path d="M14 16l3 3 5-6M26 17h8M14 27l3 3 5-6M26 28h8M14 37h8"/></svg><h3>Obligation Tracking</h3><p>Turn payment terms, milestones, and notice periods into structured fields an obligation tracker can schedule and alert against.</p><span class="bs-usecase-tag">Contract Management</span></div><div class="bs-usecase-card"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M38 24a14 14 0 1 1-4.5-10.3"/><path d="M38 8v8h-8"/><path d="M24 17v8l5 3"/></svg><h3>Renewal Management</h3><p>Capture auto-renewal terms, notice windows, and expiration dates so renewals surface before the notice deadline passes.</p><span class="bs-usecase-tag">Renewals</span></div><div class="bs-usecase-card"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 8v32M13 40h22M9 14h30"/><path d="M9 14l-5 12a6 6 0 0 0 10 0zM39 14l-5 12a6 6 0 0 0 10 0z"/></svg><h3>Compliance & Audit</h3><p>Locate required clauses across counterparties, with the page and bounding box behind every value for reviewers and auditors.</p><span class="bs-usecase-tag">Risk & Compliance</span></div></div>
+    </div>
+  </section>
+
+  <!-- 11. SECURITY + PRICING -->
+  <section class="ap-sec" id="lg-security">
+    <div class="ap-wrap ap-head ap-center" data-reveal>
+      <span class="ap-kicker">Built for confidential documents</span>
+      <h2 class="ap-h2">Contracts are sensitive. The platform treats them that way.</h2>
+      <p class="ap-lede">Certified infrastructure, encryption in transit and at rest, and retention policies you set.</p>
+    </div>
+    <div class="ap-grid ap-g3 lg-sec3"><div class="ap-cell" data-reveal><div class="ap-num">01</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 6l16 6v12c0 10-7 18-16 20-9-2-16-10-16-20V12l16-6zM18 24l4 4 8-8"/></svg><h3>SOC 2 Type II and HIPAA</h3><p>Sensible is SOC 2 Type II certified and HIPAA compliant, so contracts containing sensitive terms stay inside an audited boundary.</p></div><div class="ap-cell" data-reveal><div class="ap-num">02</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="10" y="22" width="28" height="20" rx="3"/><path d="M16 22v-6a8 8 0 0 1 16 0v6M24 30v5"/></svg><h3>Encrypted end to end</h3><p>Data is encrypted in transit and at rest, from the moment a contract hits the API to the moment JSON comes back.</p></div><div class="ap-cell" data-reveal><div class="ap-num">03</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="17"/><path d="M24 14v10l7 4"/></svg><h3>Retention you control</h3><p>Document data is stored indefinitely by default. Custom retention policies are available and can be configured for same-day deletion.</p></div></div>
+    <div class="ap-wrap">
+      <div class="lg-trial" data-reveal>
+        <div><b>14-day free trial</b><span>On the Growth plan. No credit card required to start.</span></div>
+        <div><b>Per-document pricing</b><span>Predictable cost with no token-volatility surprises. Volume discounts for higher throughput.</span></div>
+        <div><b>Integrates in hours</b><span>REST APIs and SDKs for Python and Node.js. Webhooks, Zapier, and direct API calls are all supported.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. SELF-SERVE OR MANAGED -->
+  <section class="ap-sec ap-mgd ap-band" id="lg-managed">
+    <div class="ap-wrap ap-head ap-center" data-reveal>
+      <span class="ap-kicker">Managed services</span>
+      <h2 class="ap-h2">Don&rsquo;t want to build it? <em>We&rsquo;ll write your configs from your samples.</em></h2>
+      <p class="ap-lede">Solutions engineers handle plan, build, deploy, and adjust on your behalf. You see clean JSON in your API response. Same engine as self-serve, just with the configuration work outsourced.</p>
+      <div class="ap-btns"><a class="ap-btn p" href="https://www.sensible.so/managed-services">See managed services</a><a class="ap-btn s" href="https://www.sensible.so/meeting">Talk to our team</a></div>
+    </div>
+    <div class="ap-grid ap-g5"><div class="ap-cell" data-reveal><div class="ap-num">01</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="21" cy="21" r="11"/><path d="M29 29l12 12M16 21h10M21 16v10"/></svg><h3>Plan</h3><p>Engineers review your samples and pick the right method.</p></div><div class="ap-cell" data-reveal><div class="ap-num">02</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 12L6 24l12 12M30 12l12 12-12 12M27 8l-6 32"/></svg><h3>Build</h3><p>SenseML configs written from your samples.</p></div><div class="ap-cell" data-reveal><div class="ap-num">03</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 6c8 6 11 14 9 24H15c-2-10 1-18 9-24zM15 30l-6 8 9-2M33 30l6 8-9-2"/><circle cx="24" cy="20" r="3"/></svg><h3>Deploy</h3><p>Same engine as self-serve, ready for production.</p></div><div class="ap-cell" data-reveal><div class="ap-num">04</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 14h32M8 24h32M8 34h32"/><circle cx="16" cy="14" r="4" fill="#fff"/><circle cx="32" cy="24" r="4" fill="#fff"/><circle cx="20" cy="34" r="4" fill="#fff"/></svg><h3>Adjust</h3><p>Configs updated when formats shift or new edge cases appear.</p></div><div class="ap-cell" data-reveal><div class="ap-num">05</div><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="24" r="6"/><circle cx="36" cy="12" r="6"/><circle cx="36" cy="36" r="6"/><path d="M18 22l12-8M18 26l12 8"/></svg><h3>Integrate</h3><p>Help with custom integration into your downstream systems.</p></div></div>
+  </section>
+
+  <!-- 14. RELATED -->
+  <section class="ap-sec ap-band" id="lg-related">
+    <div class="ap-wrap">
+      <div class="ap-head ap-center" data-reveal>
+        <span class="ap-kicker">Document type library</span>
+        <h2 class="ap-h2">Explore related document types</h2>
+        <p class="ap-lede">Sensible supports hundreds of structured and unstructured document types across lending, insurance, legal, and accounting.</p>
+      </div>
+      <div class="bs-related-grid" data-reveal><a class="bs-related-card" href="https://www.sensible.so/blog/how-a-spanish-compliance-startup-automated-extraction-from-80-page-corporate-documents"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5h17l9 9v29H12z"/><path d="M29 5v9h9M18 22h14M18 28h14"/><path d="M18 38c3-5 5-5 6-1s3 2 6-2"/></svg><h4>Corporate Documents (80 pages)</h4><p>See how a compliance startup automated extraction from 80-page corporate documents.</p><span class="bs-related-arrow">View &rarr;</span></a><a class="bs-related-card" href="https://www.sensible.so/solutions"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="6" width="32" height="36" rx="2"/><path d="M14 14h20M14 22h14M14 30h20"/></svg><h4>Accounts Payable Invoices</h4><p>Extract vendor headers, multi-line item tables, and tax reconciliations.</p><span class="bs-related-arrow">View &rarr;</span></a><a class="bs-related-card" href="https://www.sensible.so/doc-types/bank-statements"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="6" width="32" height="36" rx="2"/><path d="M8 16h32M8 26h32M18 6v36"/></svg><h4>Bank Statements</h4><p>Reconciled ledgers and multi-page transaction tables from 150+ institutions.</p><span class="bs-related-arrow">View &rarr;</span></a><a class="bs-related-card" href="https://www.sensible.so/solutions"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 6l16 6v12c0 10-7 18-16 20-9-2-16-10-16-20V12l16-6z"/><path d="M18 22h12M18 28h8"/></svg><h4>ACORD Insurance Certificates</h4><p>Extract policy limits, insured entities, carriers, and expiration dates.</p><span class="bs-related-arrow">View &rarr;</span></a><a class="bs-related-card" href="https://www.sensible.so/solutions"><svg class="ap-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1A1520" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="14" y="6" width="26" height="32" rx="2"/><path d="M10 12v30h26M20 16h14M20 24h14M20 32h8"/></svg><h4>All document types</h4><p>Browse the full library of structured and unstructured document types.</p><span class="bs-related-arrow">View &rarr;</span></a></div>
+    </div>
+  </section>
+
+  <!-- 15. FAQ -->
+  <section class="ap-sec" id="lg-faq">
+    <div class="ap-wrap"><div class="ap-faq">
+      <div class="ap-faq-head" data-reveal>
+        <span class="ap-kicker">Common questions</span>
+        <h2 class="ap-h2">Questions from legal and ops teams</h2>
+        <p class="ap-lede">Amendments, clause identification, human review, security, and pricing.</p>
+      </div>
+      <div class="ap-faq-list"><details class="ap-q" data-reveal open><summary>Can Sensible handle contract amendments and addenda?<i>+</i></summary><div class="ap-q-a"><p>Yes. Sensible processes amendments as standalone documents, extracting the original agreement reference, amendment date, modified clauses, and new terms. Each modification comes back as a structured change record linked to its parent contract.</p></div></details><details class="ap-q" data-reveal><summary>Does Sensible extract key dates and terms from contracts?<i>+</i></summary><div class="ap-q-a"><p>Effective date, expiration date, renewal terms, notice periods, payment terms, and milestone dates come back by default. Contracts vary widely, so these are examples of what is commonly pulled, not a closed list. The dates and terms you extract are defined in configuration and shaped to your agreement types.</p></div></details><details class="ap-q" data-reveal><summary>What party information does Sensible extract from contracts?<i>+</i></summary><div class="ap-q-a"><p>Sensible captures party names, roles (buyer, seller, licensor, licensee), addresses, and signatory details including name, title, and signature date. Roles and party fields are defined in configuration, so you extend them for the agreement types you handle rather than mapping to a fixed set.</p></div></details><details class="ap-q" data-reveal><summary>Can Sensible identify specific clauses in contracts?<i>+</i></summary><div class="ap-q-a"><p>Yes. Sensible locates clause types like indemnification, limitation of liability, termination, confidentiality, non-compete, and force majeure. Those are common examples. The clauses it looks for are defined in configuration, so you add the provisions specific to your contracts when something is not already covered.</p></div></details><details class="ap-q" data-reveal><summary>Does Sensible support human review?<i>+</i></summary><div class="ap-q-a"><p>Yes. Sensible flags extractions with low confidence for human review. You can configure review thresholds and workflows.</p></div></details><details class="ap-q" data-reveal><summary>How is contract data secured, and how long is it retained?<i>+</i></summary><div class="ap-q-a"><p>Sensible is SOC 2 Type II certified and HIPAA compliant. Data is encrypted in transit and at rest. Document data is stored indefinitely by default; custom retention policies are available and can be configured for same-day deletion if needed.</p></div></details><details class="ap-q" data-reveal><summary>What file formats does Sensible support?<i>+</i></summary><div class="ap-q-a"><p>Sensible processes PDFs (native or scanned), Microsoft Word (DOC, DOCX), spreadsheets (XLSX, XLS, CSV), single-page images (JPEG, PNG), multi-page images (TIFF), and email bodies with attachments.</p></div></details><details class="ap-q" data-reveal><summary>How accurate and how fast is contract extraction?<i>+</i></summary><div class="ap-q-a"><p>Accuracy depends on document quality and configuration. Most production deployments achieve 95%+ accuracy with proper validation rules and confidence signals. Processing speed depends on document size, page count, OCR requirements, and which extraction methods are used. Simple single-page documents process in seconds; larger documents that use LLM-based extraction take longer.</p></div></details><details class="ap-q" data-reveal><summary>How is pricing structured, and is there a free trial?<i>+</i></summary><div class="ap-q-a"><p>Sensible uses per-document pricing for predictable costs, with no token-based billing or usage surprises. Volume discounts are available for higher throughput. There is a 14-day free trial on the Growth plan, and no credit card is required to start.</p></div></details></div>
+    </div></div>
+  </section>
+
+</div>
+<section class="cta-banner">
+    <div class="cta-inner">
+      <h2 class="cta-h2">Try <span class="sensible-font">Sensible</span> on your documents.</h2>
+      <p class="cta-p">Bring the document your team dreads. If it works on that one, you'll know.</p>
+      <div class="cta-btns">
+        <a href="https://app.sensible.so/register/" class="cta-btn-primary">Start Free</a>
+        <a href="https://www.sensible.so/meeting" class="cta-btn-secondary">Book a Demo</a>
+      </div>
+      <p class="cta-note">14-day free trial on the Growth Plan · No credit card</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <a href="https://www.sensible.so" style="display: inline-flex;">
+            <img src="https://cdn.prod.website-files.com/69d90e4abf8f50428ec28825/69d90e4abf8f50428ec2888c_LogoDefault.svg" alt="Sensible" class="footer-logo-img"/>
+          </a>
+          <p class="footer-brand-blurb">Document extraction you can trust.</p>
+          <div class="footer-social">
+            <a href="https://github.com/sensible-hq/" aria-label="GitHub">GitHub</a>
+            <a href="https://twitter.com/sensiblehq" aria-label="Twitter">Twitter</a>
+            <a href="https://www.linkedin.com/company/usesensible/" aria-label="LinkedIn">LinkedIn</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-label">Product</div>
+          <a href="https://docs.sensible.so/docs/getting-started">SenseML</a>
+          <a href="https://www.sensible.so/managed-services">Managed Services</a>
+          <a href="https://www.sensible.so/how-it-works">How it Works</a>
+          <a href="https://www.sensible.so/pricing">Pricing</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-label">Developers</div>
+          <a href="https://docs.sensible.so/">Documentation</a>
+          <a href="https://docs.sensible.so/reference">API Reference</a>
+          <a href="https://docs.sensible.so/changelog">Changelog</a>
+          <a href="https://sensible.statuspage.io/">API Status</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-label">Company</div>
+          <a href="https://www.sensible.so/about">About</a>
+          <a href="https://www.sensible.so/contact-us">Talk to our team</a>
+          <a href="https://www.sensible.so/blog">Blog</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-label">Compare</div>
+          <a href="https://www.sensible.so/sensible-vs-docsumo">Docsumo</a>
+          <a href="https://www.sensible.so/sensible-vs-nanonets">Nanonets</a>
+          <a href="https://www.sensible.so/sensible-vs-ocrolus">Ocrolus</a>
+          <a href="https://www.sensible.so/sensible-vs-reducto">Reducto</a>
+          <a href="https://www.sensible.so/sensible-vs-parseur">Parseur</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-copyright">© <span class="sensible-font">Sensible</span> 2026</div>
+        <div class="footer-bottom-links">
+          <a href="https://www.sensible.so/terms">Terms</a>
+          <a href="https://www.sensible.so/privacy">Privacy Policy</a>
+          <a href="https://www.sensible.so/security-overview">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+/* Sensible /solutions/legal: interactions + GSAP motion (needs GSAP + ScrollTrigger) */
+(function () {
+  'use strict';
+  var root = document.querySelector('.ap');
+  if (!root) return;
+  var $ = function (s, c) { return (c || root).querySelector(s); };
+  var $$ = function (s, c) { return Array.prototype.slice.call((c || root).querySelectorAll(s)); };
+  var html = document.documentElement;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  /* tiny JSON pretty printer with the .k/.s/.n/.c classes used by the dark code panels */
+  function pretty(v, ind) {
+    ind = ind || 0;
+    var pad = new Array(ind + 3).join(' '), end = new Array(ind + 1).join(' ');
+    if (v === null) return '<span class="n">null</span>';
+    if (typeof v === 'string') return '<span class="s">"' + esc(v) + '"</span>';
+    if (typeof v === 'number' || typeof v === 'boolean') return '<span class="n">' + v + '</span>';
+    if (Array.isArray(v)) {
+      if (!v.length) return '[]';
+      return '[\n' + v.map(function (x) { return pad + pretty(x, ind + 2); }).join(',\n') + '\n' + end + ']';
+    }
+    var keys = Object.keys(v);
+    return '{\n' + keys.map(function (k) { return pad + '<span class="k">"' + esc(k) + '"</span>: ' + pretty(v[k], ind + 2); }).join(',\n') + '\n' + end + '}';
+  }
+
+  /* ================= Hero stage: live extraction ================= */
+  var stage = $('#lg-stage');
+  var timers = [], spot = null, sIdx = 0;
+  function clearAll() { timers.forEach(clearTimeout); timers = []; clearInterval(spot); spot = null; }
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function rowsEl() { return $('.lg-rows.active'); }
+  function rowList() { return $$('.lg-row', rowsEl()); }
+  function markFor(key) { return $('.lg-sheet.active .lg-hl[data-f="' + key + '"]'); }
+
+  function drawConn(row, mark) {
+    var svg = $('.lg-conn'); if (!svg) return;
+    if (!row || !mark || window.innerWidth < 992) { svg.classList.remove('on'); return; }
+    var body = $('.lg-stage-body').getBoundingClientRect();
+    var rects = mark.getClientRects(), m = rects[rects.length - 1];
+    if (!m) { svg.classList.remove('on'); return; }
+    var r = row.getBoundingClientRect();
+    var x1 = m.right - body.left, y1 = m.top + m.height / 2 - body.top;
+    var x2 = r.left - body.left, y2 = r.top + 14 - body.top;
+    var dx = Math.max(36, (x2 - x1) * 0.5);
+    $('path', svg).setAttribute('d', 'M' + x1 + ' ' + y1 + ' C' + (x1 + dx) + ' ' + y1 + ' ' + (x2 - dx) + ' ' + y2 + ' ' + x2 + ' ' + y2);
+    var c = $$('circle', svg);
+    c[0].setAttribute('cx', x1); c[0].setAttribute('cy', y1); c[1].setAttribute('cx', x2); c[1].setAttribute('cy', y2);
+    svg.classList.toggle('warn', row.dataset.flag === '1');
+    svg.classList.remove('on'); void svg.getBoundingClientRect(); svg.classList.add('on');
+  }
+
+  function setActive(i) {
+    var rows = rowList(); if (!rows.length) return;
+    sIdx = i;
+    rows.forEach(function (r, j) {
+      r.classList.toggle('active', j === i);
+      var m = markFor(r.dataset.f); if (m) m.classList.toggle('active', j === i);
+    });
+    var row = rows[i];
+    var det = $('#lg-detail');
+    $('#lg-d-src').textContent = row.dataset.src;
+    $('#lg-d-loc').textContent = row.dataset.loc;
+    $('#lg-d-chk').textContent = row.dataset.chk;
+    det.classList.toggle('flag', row.dataset.flag === '1');
+    drawConn(row, markFor(row.dataset.f));
+  }
+
+  function progress(n) {
+    var rows = rowList(), total = rows.length, sum = 0;
+    for (var i = 0; i < n; i++) sum += parseFloat(rows[i].dataset.conf);
+    $('#lg-prog-n').textContent = n + ' / ' + total;
+    $('#lg-prog-c').textContent = n ? (sum / n).toFixed(2) : '0.00';
+    $('#lg-prog-bar').style.width = (total ? n / total * 100 : 0) + '%';
+  }
+
+  function finish() {
+    stage.classList.add('done');
+    $('#lg-pill-t').textContent = 'Complete';
+    var rows = rowList();
+    rows.forEach(function (r) { r.classList.add('show'); var m = markFor(r.dataset.f); if (m) m.classList.add('seen'); });
+    progress(rows.length);
+  }
+
+  function startSpot() {
+    if (reduce) return;
+    clearInterval(spot);
+    spot = setInterval(function () { setActive((sIdx + 1) % rowList().length); }, 2600);
+  }
+
+  function reset() {
+    clearAll();
+    stage.classList.remove('done');
+    stage.classList.add('lg-anim');
+    $('#lg-pill-t').textContent = 'Extracting';
+    $$('.lg-row', stage).forEach(function (r) { r.classList.remove('show', 'active'); });
+    $$('.lg-hl', stage).forEach(function (h) { h.classList.remove('seen', 'active'); });
+    var svg = $('.lg-conn'); if (svg) svg.classList.remove('on');
+    progress(0);
+  }
+
+  function playStage() {
+    reset();
+    var rows = rowList();
+    rows.forEach(function (r, i) {
+      later(function () {
+        r.classList.add('show');
+        var m = markFor(r.dataset.f); if (m) m.classList.add('seen');
+        setActive(i);
+        progress(i + 1);
+      }, 450 + i * 620);
+    });
+    later(function () { finish(); startSpot(); }, 450 + rows.length * 620 + 250);
+  }
+
+  function userTakesOver(i) {
+    if (!stage.classList.contains('done')) { clearAll(); finish(); } else { clearInterval(spot); spot = null; }
+    setActive(i);
+  }
+
+  var started = false;
+  function startAuto() {
+    if (started) return;
+    started = true;
+    if (reduce) { finish(); setActive(0); return; }
+    playStage();
+  }
+
+  $$('.lg-ctab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var k = btn.dataset.k;
+      $$('.lg-ctab').forEach(function (b) { b.classList.toggle('active', b === btn); });
+      $$('.lg-sheet').forEach(function (s) { s.classList.toggle('active', s.dataset.k === k); });
+      $$('.lg-rows').forEach(function (s) { s.classList.toggle('active', s.dataset.k === k); });
+      var sh = $('.lg-sheet.active'); if (sh) $('#lg-file').textContent = sh.dataset.file;
+      started = true;
+      if (reduce) { finish(); setActive(0); } else { playStage(); }
+    });
+  });
+  $$('.lg-row').forEach(function (row) {
+    row.addEventListener('mouseenter', function () { if (stage.classList.contains('lg-anim') && !row.classList.contains('show')) return; userTakesOver(rowList().indexOf(row)); });
+  });
+  $$('.lg-hl').forEach(function (h) {
+    h.addEventListener('mouseenter', function () {
+      var rows = rowList(), i = rows.findIndex(function (r) { return r.dataset.f === h.dataset.f; });
+      if (i >= 0) userTakesOver(i);
+    });
+  });
+  if (stage) stage.addEventListener('mouseleave', function () { if (stage.classList.contains('done')) startSpot(); });
+  window.addEventListener('resize', function () { if (stage.classList.contains('done')) setActive(sIdx); });
+  /* prepare the build-up state before first paint when motion is allowed */
+  if (stage && !reduce) { reset(); }
+
+  /* ================= Clause locator ================= */
+  var papers = $('.lg-papers');
+  var clauseData = {};
+  if (papers) { try { clauseData = JSON.parse(papers.getAttribute('data-clauses')); } catch (e) {} }
+  var clauseTimer = null, clauseTouched = false;
+  function setClause(id, animate) {
+    var d = clauseData[id]; if (!d) return;
+    $$('.lg-chip').forEach(function (c) { c.classList.toggle('active', c.dataset.c === id); });
+    $$('.lg-paper').forEach(function (p, i) {
+      var hit = d.hits[i];
+      $$('.lg-sec', p).forEach(function (s) { s.classList.toggle('hit', s.dataset.i === String(hit.sec)); });
+      var q = $('.lg-sec-quote', p); if (q) q.innerHTML = hit.quote;
+      var o = $('.lg-out', p); if (o) o.innerHTML = pretty(hit.out);
+      var m = $('.lg-sec.hit .m', p); if (m) m.textContent = 'MATCHED ' + hit.conf;
+    });
+    var note = $('#lg-clause-note');
+    if (note) note.textContent = d.note;
+    if (animate && window.gsap && !reduce) {
+      gsap.fromTo($$('.lg-sec.hit'), { x: -8 }, { x: 0, duration: .5, ease: 'power3.out', stagger: .08 });
+      gsap.fromTo($$('.lg-out'), { opacity: .35 }, { opacity: 1, duration: .5, ease: 'power2.out', stagger: .08 });
+    }
+  }
+  $$('.lg-chip').forEach(function (c) {
+    c.addEventListener('click', function () { clauseTouched = true; clearInterval(clauseTimer); setClause(c.dataset.c, true); });
+  });
+  function startClauseAuto() {
+    if (reduce || clauseTimer) return;
+    var ids = $$('.lg-chip').map(function (c) { return c.dataset.c; });
+    var i = 0;
+    clauseTimer = setInterval(function () {
+      if (clauseTouched) { clearInterval(clauseTimer); return; }
+      i = (i + 1) % ids.length; setClause(ids[i], true);
+    }, 3600);
+  }
+
+  /* ================= Amendment chain ================= */
+  var nodes = $$('.lg-node');
+  var recBody = $('.lg-rec-body'), recTitle = $('#lg-rec-title');
+  var chainTimer = null, chainTouched = false;
+  function setNode(i, animate) {
+    nodes.forEach(function (n, j) { n.classList.toggle('active', j === i); n.classList.toggle('seen', j <= i); });
+    var n = nodes[i]; if (!n || !recBody) return;
+    var rec; try { rec = JSON.parse(n.getAttribute('data-rec')); } catch (e) { return; }
+    recBody.innerHTML = pretty(rec);
+    if (recTitle) recTitle.textContent = n.getAttribute('data-title');
+    var fill = $('.lg-chain-fill');
+    if (fill) {
+      var chain = $('.lg-chain');
+      var target = n.offsetTop + n.offsetHeight / 2 - 26;
+      if (window.gsap && !reduce) gsap.to(fill, { height: Math.max(0, target), duration: .6, ease: 'power2.inOut' });
+      else fill.style.height = Math.max(0, target) + 'px';
+    }
+    if (animate && window.gsap && !reduce) gsap.fromTo(recBody, { opacity: .3, y: 8 }, { opacity: 1, y: 0, duration: .5, ease: 'power2.out' });
+  }
+  nodes.forEach(function (n, i) {
+    n.addEventListener('click', function () { chainTouched = true; clearInterval(chainTimer); setNode(i, true); });
+  });
+  function startChainAuto() {
+    if (reduce || chainTimer || !nodes.length) return;
+    var i = 0; setNode(0, true);
+    chainTimer = setInterval(function () {
+      if (chainTouched) { clearInterval(chainTimer); return; }
+      i = (i + 1) % nodes.length; setNode(i, true);
+    }, 3400);
+  }
+
+  /* ================= Field explorer, API tabs, FAQ ================= */
+  $$('.ap-ftab').forEach(function (t) {
+    t.addEventListener('click', function () {
+      $$('.ap-ftab').forEach(function (x) { x.setAttribute('aria-selected', x === t ? 'true' : 'false'); });
+      $$('.ap-fpane').forEach(function (p) { p.classList.toggle('on', p.id === 'ap-f-' + t.dataset.ft); });
+      var sc = $('.lg-schem'); if (sc) sc.dataset.active = t.dataset.ft;
+    });
+  });
+  $$('.ap-q').forEach(function (q) {
+    q.addEventListener('toggle', function () {
+      if (q.open) $$('.ap-q').forEach(function (o) { if (o !== q && o.open) o.open = false; });
+    });
+  });
+
+  /* ================= GSAP ================= */
+  if (!window.gsap || !window.ScrollTrigger || reduce) {
+    html.classList.remove('ap-js');
+    startAuto(); startClauseAuto(); startChainAuto();
+    return;
+  }
+  gsap.registerPlugin(ScrollTrigger);
+
+  function splitWords(el) {
+    (function walk(node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+          var frag = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach(function (part) {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
+            var w = document.createElement('span'); w.className = 'ap-w';
+            var i = document.createElement('span'); i.textContent = part; w.appendChild(i);
+            frag.appendChild(w);
+          });
+          node.replaceChild(frag, n);
+        } else if (n.nodeType === 1) { walk(n); }
+      });
+    })(el);
+  }
+
+  var h1 = $('.ap-h1');
+  if (h1) {
+    splitWords(h1);
+    gsap.set(h1, { opacity: 1 });
+    var hrs = $$('.ap-hr');
+    var intro = gsap.timeline({ defaults: { ease: 'power3.out' } });
+    intro
+      .from($$('.ap-h1 .ap-w > span'), { yPercent: 115, duration: 1, stagger: 0.05 }, 0.05)
+      .fromTo($$('[data-hero]'), { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.1 }, 0.1)
+      .from(hrs, { opacity: 0, scale: 0.88, transformOrigin: '100% 0%', duration: 1.1, stagger: 0.12 }, 0.1)
+      .from($('.lg-stage'), { y: 48, opacity: 0, duration: 1.0 }, 0.3)
+      .add(function () { startAuto(); }, 1.3);
+    gsap.to(hrs, { y: '+=10', duration: 4.2, repeat: -1, yoyo: true, ease: 'sine.inOut', stagger: { each: 0.4, from: 'end' } });
+  }
+
+  ScrollTrigger.batch('[data-reveal]', {
+    start: 'top 89%', once: true,
+    onEnter: function (els) { gsap.to(els, { opacity: 1, y: 0, duration: 0.85, stagger: 0.09, ease: 'power3.out', overwrite: true }); }
+  });
+
+  /* clause locator + amendment chain start when they scroll into view */
+  if (papers) ScrollTrigger.create({ trigger: papers, start: 'top 75%', once: true, onEnter: function () { setClause($('.lg-chip.active').dataset.c, true); startClauseAuto(); } });
+  if (nodes.length) ScrollTrigger.create({ trigger: '.lg-amend', start: 'top 70%', once: true, onEnter: startChainAuto });
+
+  /* validation rows: stagger in, tick pops, numbers count up */
+  var rows = $$('.ap-check');
+  if (rows.length) {
+    gsap.set(rows, { opacity: 0, y: 14 });
+    var icons = rows.map(function (r) { return $('.ic', r); });
+    gsap.set(icons, { scale: 0 });
+    var vt = gsap.timeline({ scrollTrigger: { trigger: '.ap-checks', start: 'top 78%', once: true } });
+    rows.forEach(function (r, i) {
+      vt.to(r, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, i * 0.38)
+        .to(icons[i], { scale: 1, duration: 0.45, ease: 'back.out(2.6)' }, i * 0.38 + 0.15);
+      var res = $('.res[data-count]', r);
+      if (res) {
+        var target = parseFloat(res.dataset.count), suffix = res.dataset.suffix || '', o = { v: 0 };
+        vt.to(o, { v: target, duration: 0.9, ease: 'power2.out', onUpdate: function () {
+          res.textContent = Math.round(o.v) + suffix;
+        } }, i * 0.38 + 0.1);
+      }
+    });
+    vt.fromTo('.ap-check.flag', { backgroundColor: '#FFE3B8' }, { backgroundColor: '#FFF7EA', duration: 1.1, repeat: 1, yoyo: true }, '>-0.3');
+  }
+
+  /* contract-type chips pop in */
+  $$('.lg-type-list').forEach(function (list) {
+    gsap.from($$('span', list), { opacity: 0, y: 12, scale: .94, duration: .45, ease: 'back.out(1.8)', stagger: .06,
+      scrollTrigger: { trigger: list, start: 'top 88%', once: true } });
+  });
+
+  /* quote: words fade in with scroll */
+  var q = $('.ap-qtext');
+  if (q) {
+    splitWords(q);
+    var words = $$('.ap-w', q);
+    words.forEach(function (w) { w.style.overflow = 'visible'; });
+    gsap.fromTo(words, { opacity: 0.16 }, { opacity: 1, ease: 'none', stagger: 0.12,
+      scrollTrigger: { trigger: '.ap-quote', start: 'top 72%', end: 'bottom 62%', scrub: true } });
+  }
+
+  window.addEventListener('load', function () { ScrollTrigger.refresh(); });
+})();
+
+</script>
+</body>
+</html>

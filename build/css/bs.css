@@ -1,0 +1,497 @@
+/* ==========================================================================
+   Sensible /doc-types/bank-statements
+   Doc-Type Layout & Interactive Workbench Styles
+   ========================================================================== */
+
+/* ---------- Breadcrumbs ---------- */
+.bs-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--ap-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+  margin-bottom: 20px;
+}
+.bs-crumbs a { color: var(--ap-muted); transition: color 0.2s; }
+.bs-crumbs a:hover { color: var(--ap-mag); }
+.bs-crumbs span.sep { opacity: 0.5; }
+.bs-crumbs span.curr { color: var(--ap-ink); font-weight: 500; }
+
+/* ---------- Spec Chips Grid in Hero ---------- */
+.bs-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 28px 0 32px;
+  width: 100%;
+  max-width: 480px;
+}
+.bs-spec-card {
+  background: var(--ap-soft);
+  border: 1px solid var(--ap-line);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.bs-spec-label {
+  font-family: var(--ap-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+  margin-bottom: 3px;
+}
+.bs-spec-val {
+  font-family: var(--ap-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ap-ink);
+}
+
+/* ---------- Hero Workbench ---------- */
+.bs-workbench {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 12px;
+  box-shadow: 0 30px 70px rgba(75,5,50,0.14), 0 4px 14px rgba(26,21,32,0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+}
+.bs-wb-bar {
+  background: var(--ap-soft);
+  border-bottom: 1px solid var(--ap-line);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bs-wb-banks {
+  display: flex;
+  gap: 6px;
+}
+.bs-wb-bank-btn {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-family: var(--ap-mono);
+  border: 1px solid var(--ap-line);
+  background: #fff;
+  color: var(--ap-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-wb-bank-btn:hover { background: #fdfdfd; border-color: var(--ap-muted); }
+.bs-wb-bank-btn.active {
+  background: var(--ap-mag);
+  color: #fff;
+  border-color: var(--ap-mag);
+  font-weight: 500;
+}
+.bs-wb-views {
+  display: flex;
+  background: #e9e9ed;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.bs-wb-view-btn {
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: var(--ap-mono);
+  border: 0;
+  background: transparent;
+  color: var(--ap-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-wb-view-btn.active {
+  background: #fff;
+  color: var(--ap-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.bs-wb-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  position: relative;
+}
+.bs-wb-panel {
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+.bs-wb-panel.active {
+  display: flex;
+}
+
+/* Visual Anatomy Mode */
+.bs-anatomy-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+}
+.bs-doc-view {
+  background: #f8f8fa;
+  border-right: 1px solid var(--ap-line);
+  padding: 16px;
+  overflow-y: auto;
+}
+.bs-bbox-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 4px;
+  padding: 14px;
+  position: relative;
+  font-size: 11px;
+}
+.bs-bbox-box {
+  border: 1.5px dashed var(--ap-mag);
+  background: rgba(132, 0, 85, 0.05);
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-bbox-box:hover, .bs-bbox-box.active {
+  background: rgba(132, 0, 85, 0.12);
+  border-style: solid;
+}
+.bs-bbox-badge {
+  position: absolute;
+  top: -8px;
+  right: 6px;
+  background: var(--ap-mag);
+  color: #fff;
+  font-family: var(--ap-mono);
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.bs-bbox-badge.ok { background: var(--ap-ok); }
+.bs-bbox-badge.warn { background: var(--ap-warn); }
+
+.bs-side-inspector {
+  padding: 16px 18px;
+  background: #fff;
+  overflow-y: auto;
+  font-family: var(--ap-mono);
+  font-size: 11px;
+}
+.bs-inspect-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ap-muted);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ap-line);
+  display: flex;
+  justify-content: space-between;
+}
+.bs-inspect-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--ap-line);
+}
+.bs-inspect-row .k { color: var(--ap-muted); }
+.bs-inspect-row .v { color: var(--ap-ink); font-weight: 500; }
+.bs-inspect-row .v.code { color: var(--ap-mag); }
+.bs-inspect-row .v.ok { color: var(--ap-ok); }
+
+/* Code & JSON view panels */
+.bs-code-panel {
+  width: 100%;
+  height: 100%;
+  background: var(--ap-soft);
+  padding: 14px 18px;
+  overflow: auto;
+  font-family: var(--ap-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.bs-code-panel pre { margin: 0; }
+
+/* ---------- Institutional Matrix Section ---------- */
+.bs-matrix-filters {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+.bs-matrix-btn {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--ap-line);
+  background: #fff;
+  font-family: var(--ap-mono);
+  font-size: 0.8125rem;
+  color: var(--ap-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bs-matrix-btn:hover { border-color: var(--ap-muted); }
+.bs-matrix-btn.active {
+  background: var(--ap-ink);
+  color: #fff;
+  border-color: var(--ap-ink);
+}
+.bs-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.bs-bank-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 8px;
+  padding: 18px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.bs-bank-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26,21,32,0.06);
+  border-color: var(--ap-mag);
+}
+.bs-bank-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.bs-bank-name {
+  font-family: var(--ap-serif);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--ap-ink);
+}
+.bs-bank-badge {
+  font-family: var(--ap-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(46,123,64,0.1);
+  color: var(--ap-ok);
+  text-transform: uppercase;
+}
+.bs-bank-meta {
+  font-size: 0.8125rem;
+  color: var(--ap-body);
+  line-height: 1.45;
+  margin-bottom: 14px;
+  flex: 1;
+}
+.bs-bank-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--ap-mono);
+  font-size: 0.6875rem;
+  color: var(--ap-muted);
+  border-top: 1px solid var(--ap-line);
+  padding-top: 10px;
+}
+
+/* ---------- SenseML vs LLM Comparison Section ---------- */
+.bs-cmp-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: center;
+  background: var(--ap-soft);
+  border-radius: 16px;
+  padding: 48px;
+  border: 1px solid var(--ap-line);
+}
+.bs-cmp-list {
+  display: grid;
+  gap: 18px;
+}
+.bs-cmp-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.bs-cmp-item .bullet {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ap-mag);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+  margin-top: 2px;
+}
+.bs-cmp-item b {
+  display: block;
+  font-size: 1rem;
+  color: var(--ap-ink);
+  margin-bottom: 2px;
+}
+.bs-cmp-item p {
+  font-size: 0.9063rem;
+  color: var(--ap-body);
+  line-height: 1.5;
+}
+
+/* ---------- Use Cases Grid ---------- */
+.bs-usecase-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.bs-usecase-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 8px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.bs-usecase-card h3 {
+  font-family: var(--ap-serif);
+  font-size: 1.1875rem;
+  font-weight: 500;
+  margin: 16px 0 10px;
+}
+.bs-usecase-card p {
+  font-size: 0.9063rem;
+  line-height: 1.55;
+  color: var(--ap-body);
+  flex: 1;
+}
+.bs-usecase-tag {
+  font-family: var(--ap-mono);
+  font-size: 0.6875rem;
+  color: var(--ap-mag);
+  margin-top: 18px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Related Doc Types Grid ---------- */
+.bs-related-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+.bs-related-card {
+  background: #fff;
+  border: 1px solid var(--ap-line);
+  border-radius: 8px;
+  padding: 20px 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.bs-related-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--ap-mag);
+  box-shadow: 0 10px 30px rgba(132, 0, 85, 0.08);
+}
+.bs-related-card h4 {
+  font-family: var(--ap-serif);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  margin: 12px 0 6px;
+  color: var(--ap-ink);
+}
+.bs-related-card p {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ap-muted);
+  flex: 1;
+}
+.bs-related-arrow {
+  margin-top: 12px;
+  font-family: var(--ap-mono);
+  font-size: 0.75rem;
+  color: var(--ap-mag);
+  font-weight: 600;
+}
+
+/* ---------- Quickstart Tabbed Code Block ---------- */
+.bs-api-box {
+  background: #17121C;
+  border-radius: 12px;
+  overflow: hidden;
+  color: #E8E3DB;
+  font-family: var(--ap-mono);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+.bs-api-nav {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 4px 12px;
+}
+.bs-api-tab {
+  padding: 10px 16px;
+  background: transparent;
+  border: 0;
+  color: #8B857B;
+  font-family: var(--ap-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.bs-api-tab.active {
+  color: #FEFDFB;
+  border-bottom: 2px solid var(--ap-mag);
+  font-weight: 600;
+}
+.bs-api-code {
+  padding: 22px 24px;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  display: none;
+}
+.bs-api-code.active {
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1180px) {
+  .bs-bank-grid { grid-template-columns: repeat(3, 1fr); }
+  .bs-usecase-grid { grid-template-columns: repeat(2, 1fr); }
+  .bs-related-grid { grid-template-columns: repeat(3, 1fr); }
+  .bs-cmp-wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 991px) {
+  .bs-bank-grid { grid-template-columns: repeat(2, 1fr); }
+  .bs-anatomy-split { grid-template-columns: 1fr; }
+  .bs-doc-view { border-right: 0; border-bottom: 1px solid var(--ap-line); max-height: 280px; }
+  .bs-related-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 767px) {
+  .bs-bank-grid, .bs-usecase-grid, .bs-related-grid { grid-template-columns: 1fr; }
+  .bs-spec-grid { grid-template-columns: 1fr; }
+  .bs-cmp-wrap { padding: 24px 16px; }
+}
