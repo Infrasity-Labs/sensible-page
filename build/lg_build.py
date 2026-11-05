@@ -702,6 +702,12 @@ page = f'''<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Contract Data Extraction for Legal Teams | Sensible</title>
   <meta name="description" content="Extract parties, dates, financial terms, and key clauses from MSAs, NDAs, leases, and vendor agreements into schema-validated JSON with page and bounding-box evidence. Amendment linking, human review, SOC 2 Type II."/>
+  <meta name="robots" content="noindex"/>
+  <link rel="canonical" href="https://infrasity-labs.github.io/sensible-page/legal.html"/>
+  <meta property="og:title" content="Contract Data Extraction for Legal Teams | Sensible"/>
+  <meta property="og:description" content="Extract parties, dates, financial terms, and key clauses from MSAs, NDAs, leases, and vendor agreements into schema-validated JSON with page and bounding-box evidence. Amendment linking, human review, SOC 2 Type II."/>
+  <meta property="og:url" content="https://infrasity-labs.github.io/sensible-page/legal.html"/>
+  <meta property="og:type" content="website"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
